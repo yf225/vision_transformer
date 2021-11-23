@@ -74,7 +74,7 @@ class Encoder1DBlock(nn.Module):
   Attributes:
     inputs: input data.
     mlp_dim: dimension of the mlp on top of attention block.
-    dtype: the dtype of the computation (default: float32).
+    dtype: the dtype of the computation (default: bfloat16).
     dropout_rate: dropout rate.
     attention_dropout_rate: dropout for attention heads.
     deterministic: bool, deterministic or not (to apply dropout).
