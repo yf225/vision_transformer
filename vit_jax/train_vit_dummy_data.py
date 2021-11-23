@@ -10,8 +10,9 @@ pip install tensorflow==2.7.0 flax einops tensorflow_datasets
 # Clone repository and pull latest changes.
 rm -rf vision_transformer || true
 git clone --depth=1 https://github.com/yf225/vision_transformer -b vit_dummy_data
+cd vision_transformer/
 
-python3 vision_transformer/vit_jax/train_vit_dummy_data.py
+python3 vit_jax/train_vit_dummy_data.py
 """
 
 # References:
@@ -42,11 +43,11 @@ import numpy as np
 import tensorflow as tf
 
 # Hyperparams
-num_attention_heads = 1  # 16
-hidden_size = 128  # 1280
-num_layers = 1  # 32
+num_attention_heads = 16
+hidden_size = 1280
+num_layers = 32
 
-micro_batch_size = 1  # 44  # batch size per TPU core
+micro_batch_size = 44  # batch size per TPU core
 
 num_steps = 4
 learning_rate = 0.001
@@ -56,8 +57,6 @@ patch_size = 16  # Size of the patches to be extract from the input images
 num_patches = (image_size // patch_size) ** 2
 num_classes = 1000
 dropout_rate = 0.
-
-# Commented out IPython magic to ensure Python compatibility.
 
 import sys
 if './vision_transformer' not in sys.path:
