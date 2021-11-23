@@ -118,7 +118,8 @@ def get_random_data(*, num_classes,
 
   data = tf.data.Dataset.from_tensor_slices((
     tf.convert_to_tensor(np.random.randn(1, global_batch_size, image_size, image_size, 3), dtype=tf.bfloat16),
-    tf.one_hot(np.random.randint(0, num_classes, size=(1, global_batch_size, 1)), num_classes),
+    # tf.one_hot(np.random.randint(0, num_classes, size=(1, global_batch_size, 1)), num_classes),
+    tf.one_hot(np.zeros(1, global_batch_size, 1), num_classes),
   ))
 
   # Shard data such that it can be distributed accross devices
@@ -202,10 +203,13 @@ def train():
       opt_repl, loss_repl, update_rng_repl = update_fn_repl(
           opt_repl, flax.jax_utils.replicate(step), batch, update_rng_repl)
 
+    train_loss=float(flax.jax_utils.unreplicate(loss_repl)),
+
     time_spent = time.time() - step_start_time
     print(
       f'Step: {step}/{total_steps}, '
       f'sec/step: {time_spent:.4f}, '
+      f'loss: {train_loss:.4f}'
     )
     step_start_time = time.time()
 
