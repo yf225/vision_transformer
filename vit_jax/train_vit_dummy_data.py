@@ -50,7 +50,7 @@ num_attention_heads = 16
 hidden_size = 1280
 num_layers = 32
 
-micro_batch_size = 32  # batch size per TPU core
+micro_batch_size = 30  # batch size per TPU core
 print("micro_batch_size: ", micro_batch_size)
 
 model_dtype = jnp.bfloat16 # jnp.float32
@@ -199,7 +199,6 @@ def train():
       apply_fn=model.apply, accum_steps=accum_steps, lr_fn=lr_fn)
 
   # Create optimizer and replicate it over all TPUs/GPUs
-  # TODO: opt = momentum_clip.Optimizer(dtype='bfloat16').create(params)
   opt = momentum_clip.Optimizer(dtype=opt_dtype).create(params)
 
   initial_step = 1
