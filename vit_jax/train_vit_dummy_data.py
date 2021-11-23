@@ -1,4 +1,6 @@
-# Use https://github.com/google-research/vision_transformer/blob/main/vit_jax.ipynb as reference
+# References:
+# - https://github.com/google-research/vision_transformer/blob/main/vit_jax.ipynb
+# - https://github.com/google/flax/blob/main/examples/imagenet/train.py
 
 # Google Colab "TPU" runtimes are configured in "2VM mode", meaning that JAX
 # cannot see the TPUs because they're not directly attached. Instead we need to
