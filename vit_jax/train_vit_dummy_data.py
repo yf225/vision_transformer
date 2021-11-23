@@ -10,6 +10,7 @@ pip install tensorflow==2.7.0 flax einops tensorflow_datasets
 # Clone repository and pull latest changes.
 rm -rf vision_transformer || true
 git clone --depth=1 https://github.com/yf225/vision_transformer -b vit_dummy_data
+export PYTHONPATH=/home/yfeng_us/vision_transformer:${PYTHONPATH}
 cd vision_transformer/
 
 python3 vit_jax/train_vit_dummy_data.py
@@ -163,8 +164,9 @@ def train():
 
   # This compiles the model to XLA (takes some minutes the first time).
   start_time = time.time()
+  print("jax.jit compiling...")
   variables = jax.jit(init_model)()
-  print("JIT compile time: {:.2f}s".format(time.time() - start_time))
+  print("jax.jit compile time: {:.2f}s".format(time.time() - start_time))
 
   params = variables['params']
 
@@ -189,8 +191,7 @@ def train():
 
   # Run training loop
   print('Starting training loop; initial compile can take a while...')
-  t0 = lt0 = time.time()
-  lstep = initial_step
+  step_start_time = time.time()
   for step, batch in zip(
       range(initial_step, total_steps + 1),
       input_pipeline.prefetch(ds_train, n_prefetch=2)):
@@ -199,18 +200,10 @@ def train():
       opt_repl, loss_repl, update_rng_repl = update_fn_repl(
           opt_repl, flax.jax_utils.replicate(step), batch, update_rng_repl)
 
-    if step == initial_step:
-      print('First step took {:.2f} seconds.'.format(time.time() - t0))
-      t0 = time.time()
-      lt0, lstep = time.time(), step
-    else:
-      # Report training metrics per step
-      time_spent = time.time() - lt0
-      lt0, lstep = time.time(), step
-      done = step / total_steps
-      print(f'Step: {step}/{total_steps} {100*done:.1f}%, '  # pylint: disable=logging-format-interpolation
-                    f'sec/step: {time_spent:.2f}, '
-                    f'ETA: {(time.time()-t0)/done*(1-done)/3600:.2f}h')
+    time_spent = time.time() - step_start_time
+    print(f'Step: {step}/{total_steps}, '
+          f'sec/step: {time_spent:.2f}, '
+    step_start_time = time.time()
 
   return flax.jax_utils.unreplicate(opt_repl)
 
