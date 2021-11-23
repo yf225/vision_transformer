@@ -50,17 +50,19 @@ num_attention_heads = 16
 hidden_size = 1280
 num_layers = 32
 
-micro_batch_size = 2  # batch size per TPU core
+micro_batch_size = 44  # batch size per TPU core
 print("micro_batch_size: ", micro_batch_size)
 
-model_dtype = jnp.float32 # jnp.bfloat16 # jnp.float32
-input_dtype = tf.float32 # tf.bfloat16 # tf.float32
-if model_dtype == jnp.float32:
-  opt_dtype = 'float32'
-elif model_dtype == jnp.bfloat16:
+bits = 16
+assert bits in [16, 32]
+if bits == 16:
+  model_dtype = jnp.bfloat16
+  input_dtype = tf.bfloat16
   opt_dtype = 'bfloat16'
-else:
-  raise Exception("Unknown model_dtype: {}".format(model_dtype))
+elif bits == 32:
+  model_dtype = jnp.float32
+  input_dtype = tf.float32
+  opt_dtype = 'float32'
 
 if DEBUG:
   print("Overwriting hyperparams since we are in DEBUG mode...")
