@@ -59,7 +59,7 @@ if DEBUG:
   num_layers = 1
   micro_batch_size = 1  # batch size per TPU core
 
-num_steps = 4
+num_steps = 50
 accum_steps = 1  # How many steps to accumulate gradients for, before the gradient update
 learning_rate = 0.001
 
