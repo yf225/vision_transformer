@@ -190,7 +190,10 @@ class VisionTransformer(nn.Module):
     x = inputs
 
     # Transformer.
-    n, h, w, c = x.shape
+    try:
+      n, h, w, c = x.shape
+    except:
+      print("x.shape: ", x.shape)
     x = jnp.reshape(x, [n, (h // patch_size) * (w // patch_size), patch_size * patch_size * c])
 
     x = Encoder(

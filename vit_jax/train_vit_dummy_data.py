@@ -1,4 +1,3 @@
-!pip install flax
 # Use https://github.com/google-research/vision_transformer/blob/main/vit_jax.ipynb as reference
 
 # Google Colab "TPU" runtimes are configured in "2VM mode", meaning that JAX
@@ -14,6 +13,40 @@ if 'COLAB_TPU_ADDR' in os.environ:
   print("jax.local_devices(): ", jax.local_devices())
 else:
   print('No TPU detected. Can be changed under "Runtime/Change runtime type".')
+
+# ======
+
+!pip install flax
+import functools
+import os
+import time
+
+from absl import logging
+import flax
+import jax
+import jax.numpy as jnp
+import numpy as np
+import tensorflow as tf
+
+# ======
+
+# Clone repository and pull latest changes.
+![ -d vision_transformer ] || git clone --depth=1 https://github.com/google-research/vision_transformer
+!cd vision_transformer && git pull
+
+import sys
+if './vision_transformer' not in sys.path:
+  sys.path.append('./vision_transformer')
+
+%load_ext autoreload
+%autoreload 2
+
+from vit_jax import input_pipeline
+from vit_jax import models
+from vit_jax import momentum_clip
+from vit_jax import utils
+
+# ======
 
 num_attention_heads = 16
 hidden_size = 1280
@@ -31,24 +64,7 @@ num_patches = (image_size // patch_size) ** 2
 num_classes = 1000
 dropout_rate = 0.
 
-import functools
-import os
-import time
-
-from absl import logging
-import flax
-from flax.training import checkpoints as flax_checkpoints
-import jax
-import jax.numpy as jnp
-import numpy as np
-import tensorflow as tf
-
-from vit_jax import checkpoint
-from vit_jax import input_pipeline
-from vit_jax import models
-from vit_jax import momentum_clip
-from vit_jax import utils
-
+# ======
 
 def make_update_fn(*, apply_fn, accum_steps, lr_fn):
   """Returns update step for data parallel training."""
