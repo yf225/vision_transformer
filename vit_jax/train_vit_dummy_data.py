@@ -10,9 +10,9 @@ pip install tensorflow==2.7.0 flax einops tensorflow_datasets
 # Clone repository and pull latest changes.
 rm -rf vision_transformer || true
 git clone --depth=1 https://github.com/yf225/vision_transformer -b vit_dummy_data
-export PYTHONPATH=/home/yfeng_us/vision_transformer:${PYTHONPATH}
 cd vision_transformer/
 
+export PYTHONPATH=/home/yfeng_us/vision_transformer:${PYTHONPATH}
 python3 vit_jax/train_vit_dummy_data.py --device=tpu --bits=16 --micro-batch-size=8
 """
 
@@ -26,10 +26,11 @@ pip install tensorflow==2.7.0 flax einops tensorflow_datasets
 cd /fsx/users/willfeng
 rm -rf vision_transformer || true
 git clone --depth=1 https://github.com/yf225/vision_transformer -b vit_dummy_data
-export PYTHONPATH=/home/yfeng_us/vision_transformer:${PYTHONPATH}
-export XLA_PYTHON_CLIENT_ALLOCATOR=platform
 cd vision_transformer/
 
+export PYTHONPATH=/home/yfeng_us/vision_transformer:${PYTHONPATH}
+export XLA_PYTHON_CLIENT_ALLOCATOR=platform
+export XLA_PYTHON_CLIENT_MEM_FRACTION=.2
 python3 vit_jax/train_vit_dummy_data.py --device=gpu --bits=16 --micro-batch-size=8
 """
 
@@ -71,6 +72,8 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import tensorflow as tf
+# Prevent TF from messing GPU state
+tf.config.experimental.set_visible_devices([], 'GPU')
 
 DEBUG = False
 VERBOSE = True
