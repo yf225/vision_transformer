@@ -226,7 +226,7 @@ def train():
   # This compiles the model to XLA (takes some minutes the first time).
   start_time = time.time()
   print_verbose("jax.jit compiling...")
-  variables = jax.jit(init_model)()
+  variables = jax.jit(init_model, backend='cpu')()
   print_verbose("jax.jit compile time: {:.2f}s".format(time.time() - start_time))
 
   params = variables['params']
