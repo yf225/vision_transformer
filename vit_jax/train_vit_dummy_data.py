@@ -44,13 +44,14 @@ import numpy as np
 import tensorflow as tf
 
 # Hyperparams
-num_attention_heads = 16
-hidden_size = 1280
-num_layers = 32
+num_attention_heads = 1 # 16
+hidden_size = 128 # 1280
+num_layers = 1 # 32
 
-micro_batch_size = 44  # batch size per TPU core
+micro_batch_size = 1 # 44  # batch size per TPU core
 
 num_steps = 4
+accum_steps = 1  # How many steps to accumulate gradients for, before the gradient update
 learning_rate = 0.001
 
 image_size = 224
@@ -169,12 +170,13 @@ def train():
   print("jax.jit compile time: {:.2f}s".format(time.time() - start_time))
 
   params = variables['params']
+  print(type(params))
 
   total_steps = num_steps
   lr_fn = lambda lr: 0.001
 
   update_fn_repl = make_update_fn(
-      apply_fn=model.apply, accum_steps=1, lr_fn=lr_fn)
+      apply_fn=model.apply, accum_steps=accum_steps, lr_fn=lr_fn)
 
   # Create optimizer and replicate it over all TPUs/GPUs
   opt = momentum_clip.Optimizer(dtype='bfloat16').create(params)
