@@ -92,7 +92,7 @@ def print_verbose(message):
   if VERBOSE:
     print(message, flush=True)
 
-print_verbose("micro_batch_size: {}".format(micro_batch_size))
+print("micro_batch_size: {}".format(micro_batch_size))
 
 num_steps = 20
 accum_steps = 1  # How many steps to accumulate gradients for, before the gradient update
