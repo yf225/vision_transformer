@@ -16,6 +16,7 @@ from typing import Any, Callable, Optional, Tuple
 
 import flax.linen as nn
 import jax.numpy as jnp
+import numpy as np
 
 Array = Any
 PRNGKey = Any
