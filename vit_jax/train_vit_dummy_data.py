@@ -27,9 +27,9 @@ import os
 if 'COLAB_TPU_ADDR' in os.environ:
   import jax.tools.colab_tpu
   jax.tools.colab_tpu.setup_tpu()
-  print('Connected to TPU.')
 assert "tpu" in str(jax.local_devices()[0]).lower()
 assert jax.local_device_count() == 8
+print('Connected to TPU.')
 
 import functools
 import os
@@ -76,7 +76,6 @@ from vit_jax import models
 from vit_jax import momentum_clip
 from vit_jax import utils
 
-print(jax.devices())
 
 def make_update_fn(*, apply_fn, accum_steps, lr_fn):
   """Returns update step for data parallel training."""
@@ -116,7 +115,6 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
 def get_random_data(*, num_classes,
              image_size, global_batch_size, num_steps):
   num_devices = jax.local_device_count()
-  print("jax.local_device_count(): ", jax.local_device_count())
 
   data = tf.data.Dataset.from_tensor_slices((
     tf.convert_to_tensor(np.random.randn(1, global_batch_size, image_size, image_size, 3), dtype=tf.bfloat16),
