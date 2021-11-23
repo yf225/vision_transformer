@@ -43,12 +43,21 @@ import jax.numpy as jnp
 import numpy as np
 import tensorflow as tf
 
-# Hyperparams
-num_attention_heads = 1 # 16
-hidden_size = 128 # 1280
-num_layers = 1 # 32
+DEBUG = True
 
-micro_batch_size = 1 # 44  # batch size per TPU core
+# Hyperparams
+num_attention_heads = 16
+hidden_size = 1280
+num_layers = 32
+
+micro_batch_size = 44  # batch size per TPU core
+
+if DEBUG:
+  print("Overwriting hyperparams since we are in DEBUG mode...")
+  num_attention_heads = 1
+  hidden_size = 128
+  num_layers = 1
+  micro_batch_size = 1  # batch size per TPU core
 
 num_steps = 4
 accum_steps = 1  # How many steps to accumulate gradients for, before the gradient update
