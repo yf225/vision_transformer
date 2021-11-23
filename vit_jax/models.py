@@ -36,7 +36,7 @@ class MlpBlock(nn.Module):
   """Transformer MLP / feed-forward block."""
 
   mlp_dim: int
-  dtype: Dtype = jnp.float32
+  dtype: Dtype = jnp.bfloat16
   out_dim: Optional[int] = None
   dropout_rate: float = 0.1
   kernel_init: Callable[[PRNGKey, Shape, Dtype],
@@ -83,7 +83,7 @@ class Encoder1DBlock(nn.Module):
 
   mlp_dim: int
   num_heads: int
-  dtype: Dtype = jnp.float32
+  dtype: Dtype = jnp.bfloat16
   dropout_rate: float = 0.1
   attention_dropout_rate: float = 0.1
 
@@ -136,6 +136,7 @@ class Encoder(nn.Module):
   num_layers: int
   hidden_size: int
   num_heads: int
+  dtype: Dtype = jnp.bfloat16
   dropout_rate: float = 0.1
   attention_dropout_rate: float = 0.1
 
@@ -155,8 +156,9 @@ class Encoder(nn.Module):
 
     x = nn.Dense(
         features=self.hidden_size,
-        name='projection')(inputs)
-    x = x + nn.Embed(num_embeddings=num_patches, features=self.hidden_size)(
+        name='projection',
+        dtype=self.dtype)(inputs)
+    x = x + nn.Embed(num_embeddings=num_patches, features=self.hidden_size, dtype=self.dtype)(
       np.arange(start=0, stop=num_patches, step=1)
     )
 
@@ -167,9 +169,10 @@ class Encoder(nn.Module):
           dropout_rate=self.dropout_rate,
           attention_dropout_rate=self.attention_dropout_rate,
           name=f'encoderblock_{lyr}',
-          num_heads=self.num_heads)(
+          num_heads=self.num_heads,
+          dtype=self.dtype)(
               x, deterministic=not train)
-    encoded = nn.LayerNorm(name='encoder_norm')(x)
+    encoded = nn.LayerNorm(name='encoder_norm', dtype=self.dtype)(x)
 
     return encoded
 
@@ -183,6 +186,7 @@ class VisionTransformer(nn.Module):
   patch_size: int
   num_classes: int
   dropout_rate: float
+  dtype: Dtype = jnp.bfloat16
   representation_size: Optional[int] = None
   classifier: str = 'token'
 
@@ -200,7 +204,8 @@ class VisionTransformer(nn.Module):
       hidden_size=self.hidden_size,
       num_heads=self.num_heads,
       dropout_rate=self.dropout_rate,
-      attention_dropout_rate=self.dropout_rate)(x, train=train)
+      attention_dropout_rate=self.dropout_rate,
+      dtype=self.dtype)(x, train=train)
 
     if self.classifier == 'token':
       x = x[:, 0]
@@ -210,7 +215,7 @@ class VisionTransformer(nn.Module):
       raise ValueError(f'Invalid classifier={self.classifier}')
 
     if self.representation_size is not None:
-      x = nn.Dense(features=self.representation_size, name='pre_logits')(x)
+      x = nn.Dense(features=self.representation_size, name='pre_logits', dtype=self.dtype)(x)
       x = nn.tanh(x)
     else:
       x = IdentityLayer(name='pre_logits')(x)
@@ -219,5 +224,6 @@ class VisionTransformer(nn.Module):
       x = nn.Dense(
         features=self.num_classes,
         name='head',
-        kernel_init=nn.initializers.zeros)(x)
+        kernel_init=nn.initializers.zeros,
+        dtype=self.dtype)(x)
     return x
