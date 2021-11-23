@@ -43,7 +43,7 @@ import jax.numpy as jnp
 import numpy as np
 import tensorflow as tf
 
-DEBUG = False
+DEBUG = True
 
 # Hyperparams
 num_attention_heads = 16
