@@ -2,14 +2,10 @@
 """
 pip install --upgrade pip
 export PATH=/home/yfeng_us/.local/bin:${PATH}
+
 pip install "jax[tpu]>=0.2.16" -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
-
-# NOTE: use `python3` executable!!!!!
-
-sudo pip uninstall six typing-extensions
-pip install flax
-pip install einops
-pip install tensorflow_datasets
+sudo pip uninstall -y six typing-extensions tf-nightly
+pip install -y tensorflow=2.7.0 flax einops tensorflow_datasets
 
 # Clone repository and pull latest changes.
 rm -rf vision_transformer || true
