@@ -5,18 +5,12 @@
 # Google Colab "TPU" runtimes are configured in "2VM mode", meaning that JAX
 # cannot see the TPUs because they're not directly attached. Instead we need to
 # setup JAX to communicate with a second machine that has the TPUs attached.
-import os
-if 'COLAB_TPU_ADDR' in os.environ:
-  import jax
-  import jax.tools.colab_tpu
-  jax.tools.colab_tpu.setup_tpu()
-  print('Connected to TPU.')
-  print("jax.device_count(): ", jax.device_count())
-  print("jax.local_devices(): ", jax.local_devices())
-else:
-  print('No TPU detected. Can be changed under "Runtime/Change runtime type".')
-
-# ======
+import jax
+import jax.tools.colab_tpu
+jax.tools.colab_tpu.setup_tpu()
+print('Connected to TPU.')
+print("jax.local_device_count(): ", jax.local_device_count())
+print("jax.local_devices(): ", jax.local_devices())
 
 !pip install flax
 import functools
@@ -30,32 +24,14 @@ import jax.numpy as jnp
 import numpy as np
 import tensorflow as tf
 
-# ======
 
-# Clone repository and pull latest changes.
-![ -d vision_transformer ] || git clone --depth=1 https://github.com/google-research/vision_transformer
-!cd vision_transformer && git pull
 
-import sys
-if './vision_transformer' not in sys.path:
-  sys.path.append('./vision_transformer')
+# Hyperparams
+num_attention_heads = 1  # 16
+hidden_size = 128  # 1280
+num_layers = 1  # 32
 
-%load_ext autoreload
-%autoreload 2
-
-from vit_jax import input_pipeline
-from vit_jax import models
-from vit_jax import momentum_clip
-from vit_jax import utils
-
-# ======
-
-num_attention_heads = 16
-hidden_size = 1280
-num_layers = 32
-
-micro_batch_size = 28  # batch size per TPU core
-global_batch_size = micro_batch_size * jax.device_count()
+micro_batch_size = 1  # 44  # batch size per TPU core
 
 num_steps = 4
 learning_rate = 0.001
@@ -66,7 +42,27 @@ num_patches = (image_size // patch_size) ** 2
 num_classes = 1000
 dropout_rate = 0.
 
-# ======
+# Commented out IPython magic to ensure Python compatibility.
+!pip install einops
+
+# Clone repository and pull latest changes.
+!rm -rf vision_transformer || true
+!git clone --depth=1 https://github.com/yf225/vision_transformer -b vit_dummy_data
+!cd vision_transformer && git pull
+
+import sys
+if './vision_transformer' not in sys.path:
+  sys.path.append('./vision_transformer')
+
+# %load_ext autoreload
+# %autoreload 2
+
+from vit_jax import input_pipeline
+from vit_jax import models
+from vit_jax import momentum_clip
+from vit_jax import utils
+
+print(jax.devices())
 
 def make_update_fn(*, apply_fn, accum_steps, lr_fn):
   """Returns update step for data parallel training."""
@@ -92,7 +88,7 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
       return cross_entropy_loss(logits=logits, labels=labels)
 
     l, g = utils.accumulate_gradient(
-        jax.value_and_grad(loss_fn), opt.target, batch['image'], batch['label'],
+        jax.value_and_grad(loss_fn), opt.target, batch[0], batch[1],
         accum_steps)
     g = jax.tree_map(lambda x: jax.lax.pmean(x, axis_name='batch'), g)
     l = jax.lax.pmean(l, axis_name='batch')
@@ -104,37 +100,40 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
 
 
 def get_random_data(*, num_classes,
-             image_size, num_examples):
+             image_size, global_batch_size, num_steps):
+  num_devices = jax.local_device_count()
+  print("jax.local_device_count(): ", jax.local_device_count())
+
   data = tf.data.Dataset.from_tensor_slices((
-    np.random.randn(num_examples, (image_size, image_size, 3)),
-    tf.one_hot(np.random.randint(0, num_classes, size=(1,)).item(), num_classes)
+    tf.convert_to_tensor(np.random.randn(1, global_batch_size, image_size, image_size, 3), dtype=tf.bfloat16),
+    tf.one_hot(np.random.randint(0, num_classes, size=(1, global_batch_size, 1)), num_classes),
   ))
 
   # Shard data such that it can be distributed accross devices
-  num_devices = jax.local_device_count()
-
-  def _shard(data):
-    data['image'] = tf.reshape(data['image'],
+  def _shard(data_image, data_label):
+    data_image = tf.reshape(data_image,
                                [num_devices, -1, image_size, image_size, 3])
-    data['label'] = tf.reshape(data['label'],
+    data_label = tf.reshape(data_label,
                                [num_devices, -1, num_classes])
-    return data
+    return data_image, data_label
 
   if num_devices is not None:
     data = data.map(_shard, tf.data.experimental.AUTOTUNE)
 
-  return data.prefetch(1)
+  return data.repeat(num_steps + 1).prefetch(2)
 
 
 def train():
   """Runs training interleaved with evaluation."""
 
   # Setup input pipeline
-  num_examples = global_batch_size * num_steps
-  ds_train = get_random_data(num_classes=num_classes, image_size=image_size, num_examples=num_examples)
+  global_batch_size = micro_batch_size * jax.local_device_count()
+  ds_train = get_random_data(num_classes=num_classes, image_size=image_size, global_batch_size=global_batch_size, num_steps=num_steps)
   batch = next(iter(ds_train))
+  print(batch[0].shape, batch[1].shape)
 
   # Build VisionTransformer architecture
+  model_dtype = jnp.bfloat16
   model = models.VisionTransformer(
     num_heads=num_attention_heads,
     hidden_size=hidden_size,
@@ -142,17 +141,20 @@ def train():
     patch_size=patch_size,
     num_classes=num_classes,
     dropout_rate=dropout_rate,
+    dtype=model_dtype,
   )
 
   def init_model():
     return model.init(
         jax.random.PRNGKey(0),
         # Discard the "num_local_devices" dimension for initialization.
-        jnp.ones(batch['image'].shape[1:], batch['image'].dtype.name),
+        jnp.ones(batch[0].shape[1:], model.dtype),
         train=False)
 
-  # Use JIT to make sure params reside in CPU memory.
-  variables = jax.jit(init_model, backend='cpu')()
+  # This compiles the model to XLA (takes some minutes the first time).
+  start_time = time.time()
+  variables = jax.jit(init_model)()
+  print("JIT compile time: {:.2f}s".format(time.time() - start_time))
 
   params = variables['params']
 
@@ -176,19 +178,19 @@ def train():
   update_rng_repl = flax.jax_utils.replicate(jax.random.PRNGKey(0))
 
   # Run training loop
-  logging.info('Starting training loop; initial compile can take a while...')
+  print('Starting training loop; initial compile can take a while...')
   t0 = lt0 = time.time()
   lstep = initial_step
   for step, batch in zip(
       range(initial_step, total_steps + 1),
-      input_pipeline.prefetch(ds_train, 1)):
+      input_pipeline.prefetch(ds_train, n_prefetch=2)):
 
-    with jax.profiler.StepTraceContext('train', step_num=step):
+    with jax.profiler.StepTraceAnnotation('train', step_num=step):
       opt_repl, loss_repl, update_rng_repl = update_fn_repl(
           opt_repl, flax.jax_utils.replicate(step), batch, update_rng_repl)
 
     if step == initial_step:
-      logging.info('First step took %.1f seconds.', time.time() - t0)
+      print('First step took {:.2f} seconds.'.format(time.time() - t0))
       t0 = time.time()
       lt0, lstep = time.time(), step
     else:
@@ -196,7 +198,7 @@ def train():
       time_spent = time.time() - lt0
       lt0, lstep = time.time(), step
       done = step / total_steps
-      logging.info(f'Step: {step}/{total_steps} {100*done:.1f}%, '  # pylint: disable=logging-format-interpolation
+      print(f'Step: {step}/{total_steps} {100*done:.1f}%, '  # pylint: disable=logging-format-interpolation
                     f'sec/step: {time_spent:.2f}, '
                     f'ETA: {(time.time()-t0)/done*(1-done)/3600:.2f}h')
 
