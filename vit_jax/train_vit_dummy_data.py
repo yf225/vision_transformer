@@ -13,12 +13,22 @@ git clone --depth=1 https://github.com/yf225/vision_transformer -b vit_dummy_dat
 export PYTHONPATH=/home/yfeng_us/vision_transformer:${PYTHONPATH}
 cd vision_transformer/
 
-python3 vit_jax/train_vit_dummy_data.py
+python3 vit_jax/train_vit_dummy_data.py --device=tpu ...
 """
 
-# Or, on GPU node, run
+# Or, on AWS GPU node, run
 """
-TODO
+pip install --upgrade pip
+pip install --upgrade "jax[cuda]" -f https://storage.googleapis.com/jax-releases/jax_releases.html  # Note: wheels only available on linux.
+pip install tensorflow==2.7.0 flax einops tensorflow_datasets
+
+# Clone repository and pull latest changes.
+rm -rf vision_transformer || true
+git clone --depth=1 https://github.com/yf225/vision_transformer -b vit_dummy_data
+export PYTHONPATH=/home/yfeng_us/vision_transformer:${PYTHONPATH}
+cd vision_transformer/
+
+python3 vit_jax/train_vit_dummy_data.py --device=gpu ...
 """
 
 # References:
@@ -259,7 +269,7 @@ def train():
     )
     step_start_time = time.time()
 
-  print("bits: {}, micro_batch_size: {}, median time / step: {}".format(bits, micro_batch_size, statistics.median(step_duration_list)))
+  print("bits: {}, global_batch_size: {}, micro_batch_size: {}, median time / step: {}".format(bits, global_batch_size, micro_batch_size, statistics.median(step_duration_list)))
 
   return flax.jax_utils.unreplicate(opt_repl)
 
