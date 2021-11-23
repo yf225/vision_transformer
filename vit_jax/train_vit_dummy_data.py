@@ -1,3 +1,19 @@
+# On Cloud VM, run
+"""
+pip install --upgrade pip
+pip install "jax[tpu]>=0.2.16" -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
+
+# NOTE: use `python3` executable!!!!!
+
+pip install flax
+pip install einops
+
+# Clone repository and pull latest changes.
+rm -rf vision_transformer || true
+git clone --depth=1 https://github.com/yf225/vision_transformer -b vit_dummy_data
+cd vision_transformer && git pull
+"""
+
 # References:
 # - https://github.com/google-research/vision_transformer/blob/main/vit_jax.ipynb
 # - https://github.com/google/flax/blob/main/examples/imagenet/train.py
@@ -6,13 +22,14 @@
 # cannot see the TPUs because they're not directly attached. Instead we need to
 # setup JAX to communicate with a second machine that has the TPUs attached.
 import jax
-import jax.tools.colab_tpu
-jax.tools.colab_tpu.setup_tpu()
-print('Connected to TPU.')
-print("jax.local_device_count(): ", jax.local_device_count())
-print("jax.local_devices(): ", jax.local_devices())
+import os
+if 'COLAB_TPU_ADDR' in os.environ:
+  import jax.tools.colab_tpu
+  jax.tools.colab_tpu.setup_tpu()
+  print('Connected to TPU.')
+assert "tpu" in str(jax.local_devices()[0]).lower()
+assert jax.local_device_count() == 8
 
-!pip install flax
 import functools
 import os
 import time
@@ -23,8 +40,6 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import tensorflow as tf
-
-
 
 # Hyperparams
 num_attention_heads = 1  # 16
@@ -43,17 +58,15 @@ num_classes = 1000
 dropout_rate = 0.
 
 # Commented out IPython magic to ensure Python compatibility.
-!pip install einops
-
-# Clone repository and pull latest changes.
-!rm -rf vision_transformer || true
-!git clone --depth=1 https://github.com/yf225/vision_transformer -b vit_dummy_data
-!cd vision_transformer && git pull
 
 import sys
 if './vision_transformer' not in sys.path:
   sys.path.append('./vision_transformer')
 
+# Clone repository and pull latest changes.
+#!rm -rf vision_transformer || true
+#!git clone --depth=1 https://github.com/yf225/vision_transformer -b vit_dummy_data
+#!cd vision_transformer && git pull
 # %load_ext autoreload
 # %autoreload 2
 
