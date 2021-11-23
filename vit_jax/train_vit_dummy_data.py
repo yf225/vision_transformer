@@ -205,7 +205,7 @@ def train():
     time_spent = time.time() - step_start_time
     print(
       f'Step: {step}/{total_steps}, '
-      f'sec/step: {time_spent:.2f}, '
+      f'sec/step: {time_spent:.4f}, '
     )
     step_start_time = time.time()
 
