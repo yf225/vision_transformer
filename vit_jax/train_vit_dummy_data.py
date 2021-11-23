@@ -23,6 +23,7 @@ pip install --upgrade "jax[cuda]" -f https://storage.googleapis.com/jax-releases
 pip install tensorflow==2.7.0 flax einops tensorflow_datasets
 
 # Clone repository and pull latest changes.
+cd /fsx/users/willfeng
 rm -rf vision_transformer || true
 git clone --depth=1 https://github.com/yf225/vision_transformer -b vit_dummy_data
 export PYTHONPATH=/home/yfeng_us/vision_transformer:${PYTHONPATH}
@@ -43,11 +44,11 @@ parser.add_argument("--micro-batch-size", type=int)
 args = parser.parse_args()
 
 assert args.device in ["tpu", "gpu"]
+import jax
 if args.device == "tpu":
   # Google Colab "TPU" runtimes are configured in "2VM mode", meaning that JAX
   # cannot see the TPUs because they're not directly attached. Instead we need to
   # setup JAX to communicate with a second machine that has the TPUs attached.
-  import jax
   import os
   if 'COLAB_TPU_ADDR' in os.environ:
     import jax.tools.colab_tpu
