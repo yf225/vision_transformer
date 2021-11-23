@@ -75,7 +75,7 @@ def print_verbose(message):
   if VERBOSE:
     print(message, flush=True)
 
-print_verbose("micro_batch_size: ", micro_batch_size)
+print_verbose("micro_batch_size: {}".format(micro_batch_size))
 
 num_steps = 20
 accum_steps = 1  # How many steps to accumulate gradients for, before the gradient update
@@ -170,7 +170,7 @@ def train():
   global_batch_size = micro_batch_size * jax.local_device_count()
   ds_train = get_random_data(num_classes=num_classes, image_size=image_size, global_batch_size=global_batch_size, num_steps=num_steps)
   batch = next(iter(ds_train))
-  print_verbose(batch[0].shape, batch[1].shape)
+  print_verbose((batch[0].shape, batch[1].shape))
 
   # Build VisionTransformer architecture
   model = models.VisionTransformer(
@@ -198,7 +198,7 @@ def train():
 
   params = variables['params']
   param_count = sum(x.size for x in jax.tree_leaves(params))
-  print_verbose("param_count: ", param_count)
+  print_verbose("param_count: {}".format(str(param_count)))
 
   total_steps = num_steps
   lr_fn = lambda lr: 0.001
