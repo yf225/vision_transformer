@@ -189,6 +189,8 @@ def train():
   print("jax.jit compile time: {:.2f}s".format(time.time() - start_time))
 
   params = variables['params']
+  param_count = sum(x.size for x in jax.tree_leaves(params))
+  print("param_count: ", param_count)
 
   total_steps = num_steps
   lr_fn = lambda lr: 0.001
