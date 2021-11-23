@@ -119,7 +119,7 @@ def get_random_data(*, num_classes,
   data = tf.data.Dataset.from_tensor_slices((
     tf.convert_to_tensor(np.random.randn(1, global_batch_size, image_size, image_size, 3), dtype=tf.bfloat16),
     # tf.one_hot(np.random.randint(0, num_classes, size=(1, global_batch_size, 1)), num_classes),
-    tf.one_hot(np.zeros(1, global_batch_size, 1), num_classes),
+    tf.one_hot(np.zeros((1, global_batch_size, 1)), num_classes),
   ))
 
   # Shard data such that it can be distributed accross devices
