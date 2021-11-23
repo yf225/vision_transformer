@@ -201,8 +201,10 @@ def train():
           opt_repl, flax.jax_utils.replicate(step), batch, update_rng_repl)
 
     time_spent = time.time() - step_start_time
-    print(f'Step: {step}/{total_steps}, '
-          f'sec/step: {time_spent:.2f}, '
+    print(
+      f'Step: {step}/{total_steps}, '
+      f'sec/step: {time_spent:.2f}, '
+    )
     step_start_time = time.time()
 
   return flax.jax_utils.unreplicate(opt_repl)
