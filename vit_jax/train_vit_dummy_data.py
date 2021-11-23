@@ -7,6 +7,7 @@ pip install "jax[tpu]>=0.2.16" -f https://storage.googleapis.com/jax-releases/li
 
 pip install flax
 pip install einops
+pip install tensorflow_datasets
 
 # Clone repository and pull latest changes.
 rm -rf vision_transformer || true
