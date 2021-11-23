@@ -51,7 +51,7 @@ num_attention_heads = 16
 hidden_size = 1280
 num_layers = 32
 
-micro_batch_size = 44  # batch size per TPU core
+micro_batch_size = 4  # batch size per TPU core
 
 bits = 16
 assert bits in [16, 32]
