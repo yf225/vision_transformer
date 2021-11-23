@@ -1,4 +1,4 @@
-# On Cloud VM, run
+# On Cloud TPU node, run
 """
 pip install --upgrade pip
 export PATH=/home/yfeng_us/.local/bin:${PATH}
@@ -16,26 +16,42 @@ cd vision_transformer/
 python3 vit_jax/train_vit_dummy_data.py
 """
 
+# Or, on GPU node, run
+"""
+TODO
+"""
+
 # References:
 # - https://github.com/google-research/vision_transformer/blob/main/vit_jax.ipynb
 # - https://github.com/google/flax/blob/main/examples/imagenet/train.py
 
-# Google Colab "TPU" runtimes are configured in "2VM mode", meaning that JAX
-# cannot see the TPUs because they're not directly attached. Instead we need to
-# setup JAX to communicate with a second machine that has the TPUs attached.
-import jax
-import os
-if 'COLAB_TPU_ADDR' in os.environ:
-  import jax.tools.colab_tpu
-  jax.tools.colab_tpu.setup_tpu()
-assert "tpu" in str(jax.local_devices()[0]).lower()
-assert jax.local_device_count() == 8
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("--device", type=str)
+parser.add_argument("--bits", type=int)
+parser.add_argument("--micro-batch-size", type=int)
+args = parser.parse_args()
+
+assert args.device in ["tpu", "gpu"]
+if args.device == "tpu":
+  # Google Colab "TPU" runtimes are configured in "2VM mode", meaning that JAX
+  # cannot see the TPUs because they're not directly attached. Instead we need to
+  # setup JAX to communicate with a second machine that has the TPUs attached.
+  import jax
+  import os
+  if 'COLAB_TPU_ADDR' in os.environ:
+    import jax.tools.colab_tpu
+    jax.tools.colab_tpu.setup_tpu()
+  assert "tpu" in str(jax.local_devices()[0]).lower()
+  assert jax.local_device_count() == 8
+elif args.device == "gpu":
+  assert "gpu" in str(jax.local_devices()[0]).lower()
+  assert jax.local_device_count() == 4
 
 import functools
 import os
 import time
 import statistics
-import argparse
 
 from absl import logging
 import flax
@@ -47,17 +63,12 @@ import tensorflow as tf
 DEBUG = False
 VERBOSE = False
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--bits", type=int)
-parser.add_argument("--micro-batch-size", type=int)
-args = parser.parse_args()
-
 # Hyperparams
 num_attention_heads = 16
 hidden_size = 1280
 num_layers = 32
 
-micro_batch_size = args.micro_batch_size  # batch size per TPU core
+micro_batch_size = args.micro_batch_size  # batch size per TPU core or GPU chip
 
 bits = args.bits
 assert bits in [16, 32]
@@ -75,7 +86,7 @@ if DEBUG:
   num_attention_heads = 1
   hidden_size = 128
   num_layers = 1
-  micro_batch_size = 1  # batch size per TPU core
+  micro_batch_size = 1  # batch size per TPU core or GPU chip
 
 def print_verbose(message):
   if VERBOSE:
@@ -248,7 +259,7 @@ def train():
     )
     step_start_time = time.time()
 
-  print("bits: {}, micro_batch_size: {}, median time / step: {}".format(str(bits), micro_batch_size, statistics.median(step_duration_list)))
+  print("bits: {}, micro_batch_size: {}, median time / step: {}".format(bits, micro_batch_size, statistics.median(step_duration_list)))
 
   return flax.jax_utils.unreplicate(opt_repl)
 
