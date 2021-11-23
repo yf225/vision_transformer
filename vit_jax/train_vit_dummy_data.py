@@ -30,11 +30,11 @@ if 'COLAB_TPU_ADDR' in os.environ:
   jax.tools.colab_tpu.setup_tpu()
 assert "tpu" in str(jax.local_devices()[0]).lower()
 assert jax.local_device_count() == 8
-print('Connected to TPU.')
 
 import functools
 import os
 import time
+import statistics
 
 from absl import logging
 import flax
@@ -44,6 +44,7 @@ import numpy as np
 import tensorflow as tf
 
 DEBUG = False
+VERBOSE = False
 
 # Hyperparams
 num_attention_heads = 16
@@ -51,7 +52,6 @@ hidden_size = 1280
 num_layers = 32
 
 micro_batch_size = 44  # batch size per TPU core
-print("micro_batch_size: ", micro_batch_size)
 
 bits = 16
 assert bits in [16, 32]
@@ -71,7 +71,13 @@ if DEBUG:
   num_layers = 1
   micro_batch_size = 1  # batch size per TPU core
 
-num_steps = 50
+def print_verbose(message):
+  if VERBOSE:
+    print(message, flush=True)
+
+print_verbose("micro_batch_size: ", micro_batch_size)
+
+num_steps = 20
 accum_steps = 1  # How many steps to accumulate gradients for, before the gradient update
 learning_rate = 0.001
 
@@ -164,7 +170,7 @@ def train():
   global_batch_size = micro_batch_size * jax.local_device_count()
   ds_train = get_random_data(num_classes=num_classes, image_size=image_size, global_batch_size=global_batch_size, num_steps=num_steps)
   batch = next(iter(ds_train))
-  print(batch[0].shape, batch[1].shape)
+  print_verbose(batch[0].shape, batch[1].shape)
 
   # Build VisionTransformer architecture
   model = models.VisionTransformer(
@@ -186,13 +192,13 @@ def train():
 
   # This compiles the model to XLA (takes some minutes the first time).
   start_time = time.time()
-  print("jax.jit compiling...")
+  print_verbose("jax.jit compiling...")
   variables = jax.jit(init_model)()
-  print("jax.jit compile time: {:.2f}s".format(time.time() - start_time))
+  print_verbose("jax.jit compile time: {:.2f}s".format(time.time() - start_time))
 
   params = variables['params']
   param_count = sum(x.size for x in jax.tree_leaves(params))
-  print("param_count: ", param_count)
+  print_verbose("param_count: ", param_count)
 
   total_steps = num_steps
   lr_fn = lambda lr: 0.001
@@ -214,8 +220,9 @@ def train():
   update_rng_repl = flax.jax_utils.replicate(jax.random.PRNGKey(0))
 
   # Run training loop
-  print('Starting training loop; initial compile can take a while...')
+  print_verbose('Starting training loop; initial compile can take a while...')
   step_start_time = time.time()
+  step_duration_list = []
   for step, batch in zip(
       range(initial_step, total_steps + 1),
       input_pipeline.prefetch(ds_train, n_prefetch=2)):
@@ -227,12 +234,15 @@ def train():
     train_loss = float(flax.jax_utils.unreplicate(loss_repl))
 
     time_spent = time.time() - step_start_time
-    print(
+    step_duration_list.append(time_spent)
+    print_verbose(
       f'Step: {step}/{total_steps}, '
       f'sec/step: {time_spent:.4f}, '
       f'loss: {train_loss:.4f}'
     )
     step_start_time = time.time()
+
+  print("bits: {}, micro_batch_size: {}, median time / step: {}".format(str(bits), micro_batch_size, statistics.median(step_duration_list)))
 
   return flax.jax_utils.unreplicate(opt_repl)
 
