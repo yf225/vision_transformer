@@ -170,7 +170,7 @@ def train():
   print("jax.jit compile time: {:.2f}s".format(time.time() - start_time))
 
   params = variables['params']
-  print(type(params))
+  print(params)
 
   total_steps = num_steps
   lr_fn = lambda lr: 0.001
