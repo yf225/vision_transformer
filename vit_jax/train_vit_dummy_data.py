@@ -27,6 +27,7 @@ cd /fsx/users/willfeng
 rm -rf vision_transformer || true
 git clone --depth=1 https://github.com/yf225/vision_transformer -b vit_dummy_data
 export PYTHONPATH=/home/yfeng_us/vision_transformer:${PYTHONPATH}
+export XLA_PYTHON_CLIENT_ALLOCATOR=platform
 cd vision_transformer/
 
 python3 vit_jax/train_vit_dummy_data.py --device=gpu --bits=16 --micro-batch-size=8
@@ -71,7 +72,7 @@ import jax.numpy as jnp
 import numpy as np
 import tensorflow as tf
 
-DEBUG = True
+DEBUG = False
 VERBOSE = True
 
 # Hyperparams
