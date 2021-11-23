@@ -13,7 +13,7 @@ git clone --depth=1 https://github.com/yf225/vision_transformer -b vit_dummy_dat
 export PYTHONPATH=/home/yfeng_us/vision_transformer:${PYTHONPATH}
 cd vision_transformer/
 
-python3 vit_jax/train_vit_dummy_data.py --device=tpu ...
+python3 vit_jax/train_vit_dummy_data.py --device=tpu --bits=16 --micro-batch-size=8
 """
 
 # Or, on AWS GPU node, run
@@ -29,7 +29,7 @@ git clone --depth=1 https://github.com/yf225/vision_transformer -b vit_dummy_dat
 export PYTHONPATH=/home/yfeng_us/vision_transformer:${PYTHONPATH}
 cd vision_transformer/
 
-python3 vit_jax/train_vit_dummy_data.py --device=gpu ...
+python3 vit_jax/train_vit_dummy_data.py --device=gpu --bits=16 --micro-batch-size=8
 """
 
 # References:
@@ -84,9 +84,14 @@ micro_batch_size = args.micro_batch_size  # batch size per TPU core or GPU chip
 bits = args.bits
 assert bits in [16, 32]
 if bits == 16:
-  model_dtype = jnp.bfloat16
-  input_dtype = tf.bfloat16
-  opt_dtype = 'bfloat16'
+  if args.device == "tpu":
+    model_dtype = jnp.bfloat16
+    input_dtype = tf.bfloat16
+    opt_dtype = 'bfloat16'
+  elif args.device == "gpu":
+    model_dtype = jnp.float16
+    input_dtype = tf.float16
+    opt_dtype = 'float16'
 elif bits == 32:
   model_dtype = jnp.float32
   input_dtype = tf.float32
