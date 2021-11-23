@@ -171,7 +171,6 @@ def train():
   print("jax.jit compile time: {:.2f}s".format(time.time() - start_time))
 
   params = variables['params']
-  print(params)
 
   total_steps = num_steps
   lr_fn = lambda lr: 0.001
@@ -203,7 +202,7 @@ def train():
       opt_repl, loss_repl, update_rng_repl = update_fn_repl(
           opt_repl, flax.jax_utils.replicate(step), batch, update_rng_repl)
 
-    train_loss=float(flax.jax_utils.unreplicate(loss_repl)),
+    train_loss = float(flax.jax_utils.unreplicate(loss_repl))
 
     time_spent = time.time() - step_start_time
     print(
