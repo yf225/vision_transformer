@@ -51,8 +51,16 @@ hidden_size = 1280
 num_layers = 32
 
 micro_batch_size = 48  # batch size per TPU core
-
 print("micro_batch_size: ", micro_batch_size)
+
+model_dtype = jnp.bfloat16 # jnp.float32
+input_dtype = tf.bfloat16 # tf.float32
+if model_dtype == jnp.float32:
+  opt_dtype = 'float32'
+elif model_dtype == jnp.bfloat16:
+  opt_dtype = 'bfloat16'
+else:
+  raise Exception("Unknown model_dtype: {}".format(model_dtype))
 
 if DEBUG:
   print("Overwriting hyperparams since we are in DEBUG mode...")
@@ -128,7 +136,7 @@ def get_random_data(*, num_classes,
   num_devices = jax.local_device_count()
 
   data = tf.data.Dataset.from_tensor_slices((
-    tf.convert_to_tensor(np.random.randn(1, global_batch_size, image_size, image_size, 3) , dtype=tf.float32),  # TODO: , dtype=tf.bfloat16),
+    tf.convert_to_tensor(np.random.randn(1, global_batch_size, image_size, image_size, 3) , dtype=input_dtype),
     # tf.one_hot(np.random.randint(0, num_classes, size=(1, global_batch_size, 1)), num_classes),
     tf.one_hot(np.zeros((1, global_batch_size, 1)), num_classes),
   ))
@@ -157,7 +165,6 @@ def train():
   print(batch[0].shape, batch[1].shape)
 
   # Build VisionTransformer architecture
-  model_dtype = jnp.float32 # TODO: jnp.bfloat16
   model = models.VisionTransformer(
     num_heads=num_attention_heads,
     hidden_size=hidden_size,
@@ -191,7 +198,7 @@ def train():
 
   # Create optimizer and replicate it over all TPUs/GPUs
   # TODO: opt = momentum_clip.Optimizer(dtype='bfloat16').create(params)
-  opt = momentum_clip.Optimizer(dtype='float32').create(params)
+  opt = momentum_clip.Optimizer(dtype=opt_dtype).create(params)
 
   initial_step = 1
   opt_repl = flax.jax_utils.replicate(opt)
