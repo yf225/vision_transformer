@@ -53,8 +53,8 @@ num_layers = 32
 micro_batch_size = 2  # batch size per TPU core
 print("micro_batch_size: ", micro_batch_size)
 
-model_dtype = jnp.bfloat16 # jnp.float32
-input_dtype = tf.bfloat16 # tf.float32
+model_dtype = jnp.float32 # jnp.bfloat16 # jnp.float32
+input_dtype = tf.float32 # tf.bfloat16 # tf.float32
 if model_dtype == jnp.float32:
   opt_dtype = 'float32'
 elif model_dtype == jnp.bfloat16:
