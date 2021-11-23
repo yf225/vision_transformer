@@ -35,6 +35,7 @@ import functools
 import os
 import time
 import statistics
+import argparse
 
 from absl import logging
 import flax
@@ -46,14 +47,19 @@ import tensorflow as tf
 DEBUG = False
 VERBOSE = False
 
+parser = argparse.ArgumentParser()
+parser.add_argument("--bits", type=int)
+parser.add_argument("--micro-batch-size", type=int)
+args = parser.parse_args()
+
 # Hyperparams
 num_attention_heads = 16
 hidden_size = 1280
 num_layers = 32
 
-micro_batch_size = 4  # batch size per TPU core
+micro_batch_size = args.micro_batch_size  # batch size per TPU core
 
-bits = 16
+bits = args.bits
 assert bits in [16, 32]
 if bits == 16:
   model_dtype = jnp.bfloat16
