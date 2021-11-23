@@ -17,9 +17,6 @@ from typing import Any, Callable, Optional, Tuple
 import flax.linen as nn
 import jax.numpy as jnp
 
-from vit_jax import models_mixer
-from vit_jax import models_resnet
-
 Array = Any
 PRNGKey = Any
 Shape = Tuple[int]
@@ -32,37 +29,6 @@ class IdentityLayer(nn.Module):
   @nn.compact
   def __call__(self, x):
     return x
-
-
-class AddPositionEmbs(nn.Module):
-  """Adds (optionally learned) positional embeddings to the inputs.
-
-  Attributes:
-    posemb_init: positional embedding initializer.
-  """
-
-  posemb_init: Callable[[PRNGKey, Shape, Dtype], Array]
-
-  @nn.compact
-  def __call__(self, inputs):
-    """Applies AddPositionEmbs module.
-
-    By default this layer uses a fixed sinusoidal embedding table. If a
-    learned position embedding is desired, pass an initializer to
-    posemb_init.
-
-    Args:
-      inputs: Inputs to the layer.
-
-    Returns:
-      Output tensor with shape `(bs, timesteps, in_dim)`.
-    """
-    # inputs.shape is (batch_size, seq_len, emb_dim).
-    assert inputs.ndim == 3, ('Number of dimensions should be 3,'
-                              ' but it is: %d' % inputs.ndim)
-    pos_emb_shape = (1, inputs.shape[1], inputs.shape[2])
-    pe = self.param('pos_embedding', self.posemb_init, pos_emb_shape)
-    return inputs + pe
 
 
 class MlpBlock(nn.Module):
@@ -160,14 +126,14 @@ class Encoder(nn.Module):
 
   Attributes:
     num_layers: number of layers
-    mlp_dim: dimension of the mlp on top of attention block
+    hidden_size: int
     num_heads: Number of heads in nn.MultiHeadDotProductAttention
     dropout_rate: dropout rate.
     attention_dropout_rate: dropout rate in self attention.
   """
 
   num_layers: int
-  mlp_dim: int
+  hidden_size: int
   num_heads: int
   dropout_rate: float = 0.1
   attention_dropout_rate: float = 0.1
@@ -183,18 +149,20 @@ class Encoder(nn.Module):
     Returns:
       output of a transformer encoder.
     """
-    assert inputs.ndim == 3  # (batch, len, emb)
+    assert inputs.ndim == 3  # (batch, len, patch_size * patch_size * num_channels)
+    num_patches = inputs.shape[1]
 
-    x = AddPositionEmbs(
-        posemb_init=nn.initializers.normal(stddev=0.02),  # from BERT.
-        name='posembed_input')(
-            inputs)
-    x = nn.Dropout(rate=self.dropout_rate)(x, deterministic=not train)
+    x = nn.Dense(
+        features=self.hidden_size,
+        name='projection')(inputs)
+    x = x + nn.Embed(num_embeddings=num_patches, features=self.hidden_size)(
+      np.arange(start=0, stop=num_patches, step=1)
+    )
 
     # Input Encoder
     for lyr in range(self.num_layers):
       x = Encoder1DBlock(
-          mlp_dim=self.mlp_dim,
+          mlp_dim=4 * self.hidden_size,
           dropout_rate=self.dropout_rate,
           attention_dropout_rate=self.attention_dropout_rate,
           name=f'encoderblock_{lyr}',
@@ -208,74 +176,30 @@ class Encoder(nn.Module):
 class VisionTransformer(nn.Module):
   """VisionTransformer."""
 
-  num_classes: int
-  patches: Any
-  transformer: Any
+  num_heads: int
   hidden_size: int
-  resnet: Optional[Any] = None
+  num_layers: int
+  patch_size: int
+  num_classes: int
+  dropout_rate: float
   representation_size: Optional[int] = None
   classifier: str = 'token'
 
   @nn.compact
   def __call__(self, inputs, *, train):
-
     x = inputs
-    # (Possibly partial) ResNet root.
-    if self.resnet is not None:
-      width = int(64 * self.resnet.width_factor)
-
-      # Root block.
-      x = models_resnet.StdConv(
-          features=width,
-          kernel_size=(7, 7),
-          strides=(2, 2),
-          use_bias=False,
-          name='conv_root')(
-              x)
-      x = nn.GroupNorm(name='gn_root')(x)
-      x = nn.relu(x)
-      x = nn.max_pool(x, window_shape=(3, 3), strides=(2, 2), padding='SAME')
-
-      # ResNet stages.
-      if self.resnet.num_layers:
-        x = models_resnet.ResNetStage(
-            block_size=self.resnet.num_layers[0],
-            nout=width,
-            first_stride=(1, 1),
-            name='block1')(
-                x)
-        for i, block_size in enumerate(self.resnet.num_layers[1:], 1):
-          x = models_resnet.ResNetStage(
-              block_size=block_size,
-              nout=width * 2**i,
-              first_stride=(2, 2),
-              name=f'block{i + 1}')(
-                  x)
-
-    n, h, w, c = x.shape
-
-    # We can merge s2d+emb into a single conv; it's the same.
-    x = nn.Conv(
-        features=self.hidden_size,
-        kernel_size=self.patches.size,
-        strides=self.patches.size,
-        padding='VALID',
-        name='embedding')(
-            x)
-
-    # Here, x is a grid of embeddings.
 
     # Transformer.
     n, h, w, c = x.shape
-    x = jnp.reshape(x, [n, h * w, c])
+    x = jnp.reshape(x, [n, (h // patch_size) * (w // patch_size), patch_size * patch_size * c])
 
-    # If we want to add a class token, add it here.
-    if self.classifier == 'token':
-      cls = self.param('cls', nn.initializers.zeros, (1, 1, c))
-      cls = jnp.tile(cls, [n, 1, 1])
-      x = jnp.concatenate([cls, x], axis=1)
-
-    x = Encoder(name='Transformer', **self.transformer)(x, train=train)
+    x = Encoder(
+      name='Transformer',
+      num_layers=self.num_layers,
+      hidden_size=self.hidden_size,
+      num_heads=self.num_heads,
+      dropout_rate=self.dropout_rate,
+      attention_dropout_rate=self.dropout_rate)(x, train=train)
 
     if self.classifier == 'token':
       x = x[:, 0]
@@ -289,13 +213,10 @@ class VisionTransformer(nn.Module):
       x = nn.tanh(x)
     else:
       x = IdentityLayer(name='pre_logits')(x)
-    
+
     if self.num_classes:
       x = nn.Dense(
         features=self.num_classes,
         name='head',
         kernel_init=nn.initializers.zeros)(x)
     return x
-
-
-MlpMixer = models_mixer.MlpMixer
