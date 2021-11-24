@@ -30,7 +30,6 @@ cd vision_transformer/
 
 export PYTHONPATH=/home/yfeng_us/vision_transformer:${PYTHONPATH}
 export XLA_PYTHON_CLIENT_ALLOCATOR=platform
-export XLA_PYTHON_CLIENT_MEM_FRACTION=.2
 python3 vit_jax/train_vit_dummy_data.py --device=gpu --bits=16 --micro-batch-size=8
 """
 
@@ -76,7 +75,7 @@ import tensorflow as tf
 tf.config.experimental.set_visible_devices([], 'GPU')
 
 DEBUG = False
-VERBOSE = True
+VERBOSE = False
 
 # Hyperparams
 num_attention_heads = 16
