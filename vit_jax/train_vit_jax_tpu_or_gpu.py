@@ -76,8 +76,8 @@ import tensorflow as tf
 # Prevent TF from messing GPU state
 tf.config.experimental.set_visible_devices([], 'GPU')
 
-DEBUG = True
-VERBOSE = True
+DEBUG = False
+VERBOSE = False
 
 # Hyperparams
 num_attention_heads = 16
