@@ -13,7 +13,7 @@ git clone --depth=1 https://github.com/yf225/vision_transformer -b vit_dummy_dat
 cd vision_transformer/
 
 export PYTHONPATH=/home/yfeng_us/vision_transformer:${PYTHONPATH}
-python3 vit_jax/train_vit_dummy_data.py --device=tpu --bits=16 --micro-batch-size=8
+python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --bits=16 --micro-batch-size=8
 """
 
 # Or, on AWS GPU node, run
@@ -23,14 +23,14 @@ pip install --upgrade "jax[cuda]" -f https://storage.googleapis.com/jax-releases
 pip install tensorflow==2.7.0 flax einops tensorflow_datasets
 
 # Clone repository and pull latest changes.
-cd /fsx/users/willfeng
+cd /fsx/users/willfeng/repos
 rm -rf vision_transformer || true
 git clone --depth=1 https://github.com/yf225/vision_transformer -b vit_dummy_data
 cd vision_transformer/
 
 export PYTHONPATH=/home/yfeng_us/vision_transformer:${PYTHONPATH}
 export XLA_PYTHON_CLIENT_ALLOCATOR=platform
-python3 vit_jax/train_vit_dummy_data.py --device=gpu --bits=16 --micro-batch-size=8
+python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --bits=16 --micro-batch-size=24
 """
 
 # References:
@@ -40,11 +40,13 @@ python3 vit_jax/train_vit_dummy_data.py --device=gpu --bits=16 --micro-batch-siz
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--device", type=str)
+parser.add_argument("--mode", type=str)
 parser.add_argument("--bits", type=int)
 parser.add_argument("--micro-batch-size", type=int)
 args = parser.parse_args()
 
 assert args.device in ["tpu", "gpu"]
+assert args.mode in ["eager", "graph"]
 import jax
 if args.device == "tpu":
   # Google Colab "TPU" runtimes are configured in "2VM mode", meaning that JAX
@@ -226,11 +228,14 @@ def train():
         jnp.ones(batch[0].shape[1:], model.dtype),
         train=False)
 
-  # This compiles the model to XLA (takes some minutes the first time).
-  start_time = time.time()
-  print_verbose("jax.jit compiling...")
-  variables = jax.jit(init_model, backend='cpu')()
-  print_verbose("jax.jit compile time: {:.2f}s".format(time.time() - start_time))
+  if args.mode == "eager":
+    variables = init_model()
+  elif args.mode == "graph":
+    # This compiles the model to XLA (takes some minutes the first time).
+    start_time = time.time()
+    print_verbose("jax.jit compiling...")
+    variables = jax.jit(init_model, backend='cpu')()
+    print_verbose("jax.jit compile time: {:.2f}s".format(time.time() - start_time))
 
   params = variables['params']
   param_count = sum(x.size for x in jax.tree_leaves(params))
