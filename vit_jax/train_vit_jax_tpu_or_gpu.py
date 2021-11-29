@@ -28,9 +28,9 @@ rm -rf vision_transformer || true
 git clone --depth=1 https://github.com/yf225/vision_transformer -b vit_dummy_data
 cd vision_transformer/
 
-export PYTHONPATH=/home/yfeng_us/vision_transformer:${PYTHONPATH}
+export PYTHONPATH=/fsx/users/willfeng/repos/vision_transformer:${PYTHONPATH}
 export XLA_PYTHON_CLIENT_ALLOCATOR=platform
-python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --bits=16 --micro-batch-size=24
+python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=eager --bits=16 --micro-batch-size=1
 """
 
 # References:
@@ -76,8 +76,8 @@ import tensorflow as tf
 # Prevent TF from messing GPU state
 tf.config.experimental.set_visible_devices([], 'GPU')
 
-DEBUG = False
-VERBOSE = False
+DEBUG = True
+VERBOSE = True
 
 # Hyperparams
 num_attention_heads = 16
@@ -229,6 +229,7 @@ def train():
         train=False)
 
   if args.mode == "eager":
+    print_verbose("Skipping jax.jit...")
     variables = init_model()
   elif args.mode == "graph":
     # This compiles the model to XLA (takes some minutes the first time).
