@@ -30,7 +30,7 @@ cd vision_transformer/
 
 export PYTHONPATH=/fsx/users/willfeng/repos/vision_transformer:${PYTHONPATH}
 export XLA_PYTHON_CLIENT_ALLOCATOR=platform
-python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=eager --bits=16 --micro-batch-size=1
+python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=eager --bits=16 --micro-batch-size=20
 """
 
 # References:
@@ -78,6 +78,7 @@ tf.config.experimental.set_visible_devices([], 'GPU')
 
 DEBUG = False
 VERBOSE = False
+should_profile = True
 
 # Hyperparams
 num_attention_heads = 16
