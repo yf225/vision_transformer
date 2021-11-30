@@ -284,9 +284,8 @@ def train():
       range(initial_step, total_steps + 1),
       input_pipeline.prefetch(ds_train, n_prefetch=2)):
 
-    with jax.profiler.StepTraceAnnotation('train', step_num=step):
-      opt_repl, loss_repl, update_rng_repl = update_fn_repl(
-          opt_repl, flax.jax_utils.replicate(step), batch, update_rng_repl)
+    opt_repl, loss_repl, update_rng_repl = update_fn_repl(
+        opt_repl, flax.jax_utils.replicate(step), batch, update_rng_repl)
 
     train_loss = float(flax.jax_utils.unreplicate(loss_repl))
 
