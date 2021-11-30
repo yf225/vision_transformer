@@ -39,7 +39,7 @@ python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=eager --bits=16 
 """
 pip install tensorflow tbp-nightly
 
-rsync -avr ab101835-ddb5-466f-9d25-55b1d5a16351:/fsx/users/willfeng/repos/vision_transformer/tensorboard_trace ~/jax_gpu_tensorboard_trace
+rsync -avr ab101835-ddb5-466f-9d25-55b1d5a16351:/fsx/users/willfeng/repos/vision_transformer/tensorboard_trace/* ~/jax_gpu_tensorboard_trace/
 tensorboard --logdir=~/jax_gpu_tensorboard_trace
 """
 
