@@ -13,6 +13,8 @@ git clone --depth=1 https://github.com/yf225/vision_transformer -b vit_dummy_dat
 cd vision_transformer/
 
 export PYTHONPATH=/home/yfeng_us/vision_transformer:${PYTHONPATH}
+export PATH=/usr/local/cuda-11.1/bin:${PATH}
+export LD_LIBRARY_PATH=/usr/local/cuda-11.1/lib64:/usr/local/cuda-11.1/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --bits=16 --micro-batch-size=8
 """
 
@@ -31,6 +33,14 @@ cd vision_transformer/
 export PYTHONPATH=/fsx/users/willfeng/repos/vision_transformer:${PYTHONPATH}
 export XLA_PYTHON_CLIENT_ALLOCATOR=platform
 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=eager --bits=16 --micro-batch-size=20
+"""
+
+# How to view profiler trace on MBP
+"""
+pip install tensorflow tbp-nightly
+
+rsync -avr ab101835-ddb5-466f-9d25-55b1d5a16351:/fsx/users/willfeng/repos/vision_transformer/tensorboard_trace ~/jax_gpu_tensorboard_trace
+tensorboard --logdir=~/jax_gpu_tensorboard_trace
 """
 
 # References:
