@@ -20,7 +20,7 @@ python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --bits=16 --micro-batch
 """
 pip install --upgrade pip
 pip install --upgrade "jax[cuda]" -f https://storage.googleapis.com/jax-releases/jax_releases.html  # Note: wheels only available on linux.
-pip install tensorflow==2.7.0 flax einops tensorflow_datasets
+pip install tensorflow==2.7.0 flax einops tensorflow_datasets tbp-nightly
 
 # Clone repository and pull latest changes.
 cd /fsx/users/willfeng/repos
@@ -265,6 +265,10 @@ def train():
   print_verbose('Starting training loop; initial compile can take a while...')
   step_start_time = time.time()
   step_duration_list = []
+
+  if should_profile:
+    jax.profiler.start_trace("./tensorboard_trace")
+
   for step, batch in zip(
       range(initial_step, total_steps + 1),
       input_pipeline.prefetch(ds_train, n_prefetch=2)):
@@ -283,6 +287,9 @@ def train():
       f'loss: {train_loss:.4f}'
     )
     step_start_time = time.time()
+
+  if should_profile:
+    jax.profiler.stop_trace()
 
   print("bits: {}, global_batch_size: {}, micro_batch_size: {}, median time / step: {}".format(bits, global_batch_size, micro_batch_size, statistics.median(step_duration_list)))
 
