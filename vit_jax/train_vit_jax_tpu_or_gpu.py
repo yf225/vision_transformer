@@ -32,7 +32,10 @@ cd vision_transformer/
 
 export PYTHONPATH=/fsx/users/willfeng/repos/vision_transformer:${PYTHONPATH}
 export XLA_PYTHON_CLIENT_ALLOCATOR=platform
+export CUDA_VISIBLE_DEVICES=0,1,2,3
 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=eager --bits=16 --micro-batch-size=16
+
+python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=graph --bits=16 --micro-batch-size=64
 """
 
 # How to view profiler trace on MBP
@@ -50,6 +53,7 @@ tensorboard --logdir=~/jax_gpu_tensorboard_trace
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--device", type=str)
+parser.add_argument("--num_devices", type=int, default=-1)
 parser.add_argument("--mode", type=str)
 parser.add_argument("--bits", type=int)
 parser.add_argument("--micro-batch-size", type=int)
@@ -67,10 +71,14 @@ if args.device == "tpu":
     import jax.tools.colab_tpu
     jax.tools.colab_tpu.setup_tpu()
   assert "tpu" in str(jax.local_devices()[0]).lower()
-  assert jax.local_device_count() == 8
+  if args.num_devices == -1:
+    args.num_devices = 8
+  assert jax.local_device_count() == args.num_devices
 elif args.device == "gpu":
   assert "gpu" in str(jax.local_devices()[0]).lower()
-  assert jax.local_device_count() == 4
+  if args.num_devices == -1:
+    args.num_devices = 4
+  assert jax.local_device_count() == args.num_devices
 
 import functools
 import os
