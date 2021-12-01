@@ -32,7 +32,7 @@ cd vision_transformer/
 
 export PYTHONPATH=/fsx/users/willfeng/repos/vision_transformer:${PYTHONPATH}
 export XLA_PYTHON_CLIENT_ALLOCATOR=platform
-python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=eager --bits=16 --micro-batch-size=20
+python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=eager --bits=16 --micro-batch-size=16
 """
 
 # How to view profiler trace on MBP
@@ -301,7 +301,7 @@ def train():
   if should_profile:
     jax.profiler.stop_trace()
 
-  print("bits: {}, global_batch_size: {}, micro_batch_size: {}, median time / step: {}".format(bits, global_batch_size, micro_batch_size, statistics.median(step_duration_list)))
+  print("mode: {}, bits: {}, global_batch_size: {}, micro_batch_size: {}, median time / step: {}".format(args.mode, bits, global_batch_size, micro_batch_size, statistics.median(step_duration_list)))
 
   return flax.jax_utils.unreplicate(opt_repl)
 
