@@ -63,11 +63,11 @@ args = parser.parse_args()
 assert args.device in ["tpu", "gpu"]
 assert args.mode in ["eager", "graph"]
 import jax
+import os
 if args.device == "tpu":
   # Google Colab "TPU" runtimes are configured in "2VM mode", meaning that JAX
   # cannot see the TPUs because they're not directly attached. Instead we need to
   # setup JAX to communicate with a second machine that has the TPUs attached.
-  import os
   if 'COLAB_TPU_ADDR' in os.environ:
     import jax.tools.colab_tpu
     jax.tools.colab_tpu.setup_tpu()
@@ -78,7 +78,6 @@ elif args.device == "gpu":
   assert jax.local_device_count() == len(os.environ["CUDA_VISIBLE_DEVICES"].split(","))
 
 import functools
-import os
 import time
 import statistics
 
