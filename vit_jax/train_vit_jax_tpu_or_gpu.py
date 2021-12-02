@@ -1,4 +1,4 @@
-# On Cloud TPU node, run
+# On Cloud TPU node (use alpha!!!), run
 """
 pip install --upgrade pip
 export PATH=/home/yfeng_us/.local/bin:${PATH}
@@ -15,7 +15,10 @@ cd vision_transformer/
 export PYTHONPATH=/home/yfeng_us/vision_transformer:${PYTHONPATH}
 export PATH=/usr/local/cuda-11.1/bin:${PATH}
 export LD_LIBRARY_PATH=/usr/local/cuda-11.1/lib64:/usr/local/cuda-11.1/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
-python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --bits=16 --micro-batch-size=8
+
+python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=eager --bits=16 --micro-batch-size=8
+
+python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=graph --bits=16 --micro-batch-size=8
 """
 
 # Or, on AWS GPU node, run
