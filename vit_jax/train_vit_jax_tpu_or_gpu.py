@@ -78,6 +78,7 @@ if args.device == "tpu":
   print(jax.local_devices()[0])
   assert "tpu" in str(jax.local_devices()[0]).lower()
   assert jax.local_device_count() == 8
+  devices = jax.local_devices()[:2] if args.use_only_two_tpu_cores else jax.local_devices()
 elif args.device == "gpu":
   assert "gpu" in str(jax.local_devices()[0]).lower()
   assert jax.local_device_count() == len(os.environ["CUDA_VISIBLE_DEVICES"].split(","))
@@ -199,7 +200,7 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
 
 def get_random_data(*, num_classes,
              image_size, global_batch_size, num_steps):
-  num_devices = jax.local_device_count() if not args.use_only_two_tpu_cores else 2
+  num_devices = len(devices)
 
   data = tf.data.Dataset.from_tensor_slices((
     tf.convert_to_tensor(np.random.randn(1, global_batch_size, image_size, image_size, 3) , dtype=input_dtype),
@@ -225,7 +226,7 @@ def train():
   """Runs training interleaved with evaluation."""
 
   # Setup input pipeline
-  global_batch_size = micro_batch_size * (jax.local_device_count() if not args.use_only_two_tpu_cores else 2)
+  global_batch_size = micro_batch_size * len(devices)
   ds_train = get_random_data(num_classes=num_classes, image_size=image_size, global_batch_size=global_batch_size, num_steps=num_steps)
   batch = next(iter(ds_train))
   print_verbose((batch[0].shape, batch[1].shape))
@@ -272,14 +273,14 @@ def train():
   opt = momentum_clip.Optimizer(dtype=opt_dtype).create(params)
 
   initial_step = 1
-  opt_repl = flax.jax_utils.replicate(opt, jax.local_devices()[:2] if args.use_only_two_tpu_cores else jax.local_devices())
+  opt_repl = flax.jax_utils.replicate(opt, devices)
 
   # Delete references to the objects that are not needed anymore
   del opt
   del params
 
   # Prepare the learning-rate and pre-fetch it to device to avoid delays.
-  update_rng_repl = flax.jax_utils.replicate(jax.random.PRNGKey(0), jax.local_devices()[:2] if args.use_only_two_tpu_cores else jax.local_devices())
+  update_rng_repl = flax.jax_utils.replicate(jax.random.PRNGKey(0), devices)
 
   # Run training loop
   print_verbose('Starting training loop; initial compile can take a while...')
@@ -291,10 +292,10 @@ def train():
 
   for step, batch in zip(
       range(initial_step, total_steps + 1),
-      input_pipeline.prefetch(ds_train, n_prefetch=2)):
+      input_pipeline.prefetch(ds_train, n_prefetch=2, devices=devices)):
 
     opt_repl, loss_repl, update_rng_repl = update_fn_repl(
-        opt_repl, flax.jax_utils.replicate(step, jax.local_devices()[:2] if args.use_only_two_tpu_cores else jax.local_devices()), batch, update_rng_repl)
+        opt_repl, flax.jax_utils.replicate(step, devices), batch, update_rng_repl)
 
     train_loss = float(flax.jax_utils.unreplicate(loss_repl))
 
