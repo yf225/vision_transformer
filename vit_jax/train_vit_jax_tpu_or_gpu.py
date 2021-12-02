@@ -74,6 +74,7 @@ if args.device == "tpu":
   if 'COLAB_TPU_ADDR' in os.environ:
     import jax.tools.colab_tpu
     jax.tools.colab_tpu.setup_tpu()
+  print(jax.local_devices()[0])
   assert "tpu" in str(jax.local_devices()[0]).lower()
   assert jax.local_device_count() == 8
 elif args.device == "gpu":
