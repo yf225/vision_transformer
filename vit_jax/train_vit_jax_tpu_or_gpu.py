@@ -58,7 +58,9 @@ tensorboard --logdir=~/jax_gpu_tensorboard_trace
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--device", type=str)
-parser.add_argument("--use_only_one_chip", type=bool, default=False)  # only works for TPU
+parser.add_argument("--use_only_two_tpu_cores", type=bool, default=False)  # only works for TPU
+parser.add_argument("--use_only_one_tpu_core", type=bool, default=False)  # only works for TPU
+parser.add_argument("--use_only_one_gpu", type=bool, default=False)  # only works for GPU
 parser.add_argument("--mode", type=str)
 parser.add_argument("--bits", type=int)
 parser.add_argument("--micro-batch-size", type=int)
@@ -66,6 +68,14 @@ args = parser.parse_args()
 
 assert args.device in ["tpu", "gpu"]
 assert args.mode in ["eager", "graph"]
+if args.use_only_two_tpu_cores:
+  assert args.device == "tpu"
+elif args.use_only_one_tpu_core:
+  assert args.device == "tpu"
+elif args.use_only_one_gpu:
+  assert args.device == "gpu"
+else:
+  assert args.mode == "graph"
 import jax
 import os
 if args.device == "tpu":
@@ -78,11 +88,19 @@ if args.device == "tpu":
   print(jax.local_devices()[0])
   assert "tpu" in str(jax.local_devices()[0]).lower()
   assert jax.local_device_count() == 8
-  devices = jax.local_devices()[:2] if args.use_only_one_chip else jax.local_devices()
+  if args.use_only_two_tpu_cores:
+    devices = jax.local_devices()[:2]
+  elif args.use_only_one_tpu_core:
+    devices = jax.local_devices()[:1]
+  else:
+    devices = jax.local_devices()
 elif args.device == "gpu":
   assert "gpu" in str(jax.local_devices()[0]).lower()
   assert jax.local_device_count() == len(os.environ["CUDA_VISIBLE_DEVICES"].split(","))
-  devices = jax.local_devices()[:1] if args.use_only_one_chip else jax.local_devices()
+  if args.use_only_one_gpu:
+    devices = jax.local_devices()[:1]
+  else:
+    devices = jax.local_devices()
 
 import functools
 import time
@@ -196,7 +214,10 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
     opt = opt.apply_gradient(g, learning_rate=lr_fn(step))
     return opt, l, new_rng
 
-  return jax.pmap(update_fn, axis_name='batch', donate_argnums=(0,))
+  if (args.use_only_one_gpu or args.use_only_one_tpu_core) and args.mode == "eager":
+    return update_fn
+  else:
+    return jax.pmap(update_fn, axis_name='batch', donate_argnums=(0,))
 
 
 def get_random_data(*, num_classes,
