@@ -58,7 +58,7 @@ tensorboard --logdir=~/jax_gpu_tensorboard_trace
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--device", type=str)
-parser.add_argument("--use_only_two_tpu_cores", type=bool, default=False)  # only works for TPU
+parser.add_argument("--use_only_one_chip", type=bool, default=False)  # only works for TPU
 parser.add_argument("--mode", type=str)
 parser.add_argument("--bits", type=int)
 parser.add_argument("--micro-batch-size", type=int)
@@ -78,10 +78,11 @@ if args.device == "tpu":
   print(jax.local_devices()[0])
   assert "tpu" in str(jax.local_devices()[0]).lower()
   assert jax.local_device_count() == 8
-  devices = jax.local_devices()[:2] if args.use_only_two_tpu_cores else jax.local_devices()
+  devices = jax.local_devices()[:2] if args.use_only_one_chip else jax.local_devices()
 elif args.device == "gpu":
   assert "gpu" in str(jax.local_devices()[0]).lower()
   assert jax.local_device_count() == len(os.environ["CUDA_VISIBLE_DEVICES"].split(","))
+  devices = jax.local_devices()[:1] if args.use_only_one_chip else jax.local_devices()
 
 import functools
 import time
