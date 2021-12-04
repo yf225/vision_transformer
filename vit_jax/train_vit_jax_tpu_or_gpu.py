@@ -203,24 +203,19 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
     l, g = utils.accumulate_gradient(
         jax.value_and_grad(loss_fn), opt.target, batch[0], batch[1],
         accum_steps)
-    if use_data_parallel:
-      g = jax.tree_map(lambda x: jax.lax.pmean(x, axis_name='batch'), g)
-      l = jax.lax.pmean(l, axis_name='batch')
+    g = jax.tree_map(lambda x: jax.lax.pmean(x, axis_name='batch'), g)
+    l = jax.lax.pmean(l, axis_name='batch')
 
     opt = opt.apply_gradient(g, learning_rate=lr_fn(step))
     return opt, l, new_rng
 
-  if not use_data_parallel:
-    return update_fn
-  else:
-    return jax.pmap(update_fn, axis_name='batch', donate_argnums=(0,))
+  return jax.pmap(update_fn, axis_name='batch', donate_argnums=(0,))
 
 
 def get_random_data(*, num_classes,
              image_size, global_batch_size, num_steps):
   num_devices = len(devices)
 
-  # if use_data_parallel:
   data = tf.data.Dataset.from_tensor_slices((
     tf.convert_to_tensor(np.random.randn(1, global_batch_size, image_size, image_size, 3) , dtype=input_dtype),
     # tf.one_hot(np.random.randint(0, num_classes, size=(1, global_batch_size, 1)), num_classes),
@@ -229,28 +224,13 @@ def get_random_data(*, num_classes,
 
   # Shard data such that it can be distributed accross devices
   def _shard(data_image, data_label):
-    if use_data_parallel:
-      data_image = tf.reshape(data_image,
-                                [num_devices, -1, image_size, image_size, 3])
-      data_label = tf.reshape(data_label,
-                                [num_devices, -1, num_classes])
-    else:
-      data_image = tf.reshape(data_image,
-                                [-1, image_size, image_size, 3])
-      data_label = tf.reshape(data_label,
-                                [-1, num_classes])
+    data_image = tf.reshape(data_image,
+                              [num_devices, -1, image_size, image_size, 3])
+    data_label = tf.reshape(data_label,
+                              [num_devices, -1, num_classes])
     return data_image, data_label
 
   data = data.map(_shard, tf.data.experimental.AUTOTUNE)
-  # else:
-  #   data_image = tf.convert_to_tensor(np.random.randn(1, global_batch_size, image_size, image_size, 3) , dtype=input_dtype)
-  #   data_label = tf.one_hot(np.zeros((1, global_batch_size)), num_classes)
-  #   assert data_image.shape == [1, global_batch_size, image_size, image_size, 3]
-  #   assert data_label.shape == [1, global_batch_size, num_classes]
-  #   data = tf.data.Dataset.from_tensor_slices((
-  #     data_image,
-  #     data_label,
-  #   ))
 
   return data.repeat(num_steps + 1).prefetch(2)
 
@@ -278,7 +258,7 @@ def train():
   def init_model():
     return model.init(
         jax.random.PRNGKey(0),
-        jnp.ones(batch[0].shape[1:], model.dtype) if use_data_parallel else jnp.ones(batch[0].shape, model.dtype),
+        jnp.ones(batch[0].shape[1:], model.dtype)
         train=False)
 
   # This compiles the model to XLA (takes some minutes the first time).
@@ -320,7 +300,7 @@ def train():
 
   for step, batch in zip(
       range(initial_step, total_steps + 1),
-      input_pipeline.prefetch(ds_train, n_prefetch=2 if use_data_parallel else None, devices=devices)):
+      input_pipeline.prefetch(ds_train, n_prefetch=2, devices=devices)):
 
     opt_repl, loss_repl, update_rng_repl = update_fn_repl(
         opt_repl, flax.jax_utils.replicate(step, devices), batch, update_rng_repl)
@@ -339,7 +319,7 @@ def train():
   if should_profile:
     jax.profiler.stop_trace()
 
-  print("bits: {}, global_batch_size: {}, micro_batch_size: {}, median time / step: {}".format(args.mode, bits, global_batch_size, micro_batch_size, statistics.median(step_duration_list)))
+  print("bits: {}, global_batch_size: {}, micro_batch_size: {}, median time / step: {}".format(bits, global_batch_size, micro_batch_size, statistics.median(step_duration_list)))
 
   return flax.jax_utils.unreplicate(opt_repl)
 
