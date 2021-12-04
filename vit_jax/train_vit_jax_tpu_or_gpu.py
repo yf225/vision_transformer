@@ -122,7 +122,7 @@ import tensorflow as tf
 tf.config.experimental.set_visible_devices([], 'GPU')
 
 DEBUG = False
-VERBOSE = False
+VERBOSE = True
 should_profile = True
 
 # Hyperparams
