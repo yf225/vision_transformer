@@ -199,6 +199,7 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
       # each with multiple accelerators).
       dropout_rng = jax.random.fold_in(rng, jax.lax.axis_index('batch'))
     else:
+      # HACK
       new_rng = jax.random.PRNGKey(0)
       dropout_rng = jax.random.PRNGKey(0)
 
