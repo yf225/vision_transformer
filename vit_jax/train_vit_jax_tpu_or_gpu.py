@@ -3,7 +3,7 @@
 pip install --upgrade pip
 export PATH=/home/yfeng_us/.local/bin:${PATH}
 
-pip install "jax[tpu]==0.2.25" -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
+pip install "jax[tpu]>=0.2.16" -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
 sudo pip uninstall -y six typing-extensions tf-nightly
 pip install tensorflow==2.7.0 flax einops tensorflow_datasets
 
@@ -24,7 +24,7 @@ python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --use_only_one_tpu_core
 # Or, on AWS GPU node, run
 """
 pip install --upgrade pip
-pip install jax[cuda11_cudnn805] -f https://storage.googleapis.com/jax-releases/jax_releases.html
+pip install --upgrade "jax[cuda]" -f https://storage.googleapis.com/jax-releases/jax_releases.html  # Note: wheels only available on linux.
 pip install tensorflow==2.7.0 flax einops tensorflow_datasets tbp-nightly
 
 # Clone repository and pull latest changes.
@@ -207,7 +207,6 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
       return -jnp.mean(jnp.sum(logp * labels, axis=1))
 
     def loss_fn(params, images, labels):
-      images = jnp.reshape(images, [-1, image_size, image_size, 3])
       logits = apply_fn(
           dict(params=params),
           rngs=dict(dropout=dropout_rng),
@@ -235,31 +234,31 @@ def get_random_data(*, num_classes,
              image_size, global_batch_size, num_steps):
   num_devices = len(devices)
 
-  # if use_data_parallel:
-  data = tf.data.Dataset.from_tensor_slices((
-    tf.convert_to_tensor(np.random.randn(1, global_batch_size, image_size, image_size, 3) , dtype=input_dtype),
-    # tf.one_hot(np.random.randint(0, num_classes, size=(1, global_batch_size, 1)), num_classes),
-    tf.one_hot(np.zeros((1, global_batch_size, 1)), num_classes),
-  ))
+  if use_data_parallel:
+    data = tf.data.Dataset.from_tensor_slices((
+      tf.convert_to_tensor(np.random.randn(1, global_batch_size, image_size, image_size, 3) , dtype=input_dtype),
+      # tf.one_hot(np.random.randint(0, num_classes, size=(1, global_batch_size, 1)), num_classes),
+      tf.one_hot(np.zeros((1, global_batch_size, 1)), num_classes),
+    ))
 
-  # Shard data such that it can be distributed accross devices
-  def _shard(data_image, data_label):
-    data_image = tf.reshape(data_image,
-                              [num_devices, -1, image_size, image_size, 3])
-    data_label = tf.reshape(data_label,
-                              [num_devices, -1, num_classes])
-    return data_image, data_label
+    # Shard data such that it can be distributed accross devices
+    def _shard(data_image, data_label):
+      data_image = tf.reshape(data_image,
+                                [num_devices, -1, image_size, image_size, 3])
+      data_label = tf.reshape(data_label,
+                                [num_devices, -1, num_classes])
+      return data_image, data_label
 
-  data = data.map(_shard, tf.data.experimental.AUTOTUNE)
-  # else:
-  #   data_image = tf.convert_to_tensor(np.random.randn(1, global_batch_size, image_size, image_size, 3) , dtype=input_dtype)
-  #   data_label = tf.one_hot(np.zeros((1, global_batch_size)), num_classes)
-  #   assert data_image.shape == [1, global_batch_size, image_size, image_size, 3]
-  #   assert data_label.shape == [1, global_batch_size, num_classes]
-  #   data = tf.data.Dataset.from_tensor_slices((
-  #     data_image,
-  #     data_label,
-  #   ))
+    data = data.map(_shard, tf.data.experimental.AUTOTUNE)
+  else:
+    data_image = tf.convert_to_tensor(np.random.randn(global_batch_size, image_size, image_size, 3) , dtype=input_dtype)
+    data_label = tf.one_hot(np.zeros((global_batch_size,)), num_classes)
+    assert data_image.shape == [global_batch_size, image_size, image_size, 3]
+    assert data_label.shape == [global_batch_size, num_classes]
+    data = tf.data.Dataset.from_tensor_slices((
+      data_image,
+      data_label,
+    ))
 
   return data.repeat(num_steps + 1).prefetch(2)
 
@@ -285,10 +284,14 @@ def train():
   )
 
   def init_model():
+    if use_data_parallel:
+      # Discard the "num_local_devices" dimension for initialization.
+      init_batch = jnp.ones(batch[0].shape[1:], model.dtype)
+    else:
+      init_batch = jnp.ones(batch[0].shape, model.dtype)
     return model.init(
         jax.random.PRNGKey(0),
-        # Discard the "num_local_devices" dimension for initialization.
-        jnp.ones(batch[0].shape[1:], model.dtype),
+        init_batch,
         train=False)
 
   if args.mode == "eager":
