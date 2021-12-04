@@ -95,6 +95,7 @@ elif args.device == "gpu":
   assert "gpu" in str(jax.local_devices()[0]).lower()
   assert jax.local_device_count() == len(os.environ["CUDA_VISIBLE_DEVICES"].split(","))
 device = jax.local_devices()[0]
+devices = [device]
 
 import functools
 import time
@@ -282,7 +283,7 @@ def train():
 
   for step, batch in zip(
       range(initial_step, total_steps + 1),
-      input_pipeline.prefetch(ds_train, None, devices=[device])):
+      input_pipeline.prefetch(ds_train, None, devices=devices)):
 
     opt, loss, _ = update_fn_obj(
         opt, step, batch, jax.random.PRNGKey(0))
