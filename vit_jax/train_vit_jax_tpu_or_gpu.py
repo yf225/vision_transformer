@@ -215,6 +215,7 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
           train=True)
       return cross_entropy_loss(logits=logits, labels=labels)
 
+    print("batch[0].shape: ", batch[0].shape)
     l, g = utils.accumulate_gradient(
         jax.value_and_grad(loss_fn), opt.target, batch[0], batch[1],
         accum_steps)
