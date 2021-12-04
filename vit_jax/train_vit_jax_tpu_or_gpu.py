@@ -24,7 +24,7 @@ python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --use_only_one_tpu_core
 # Or, on AWS GPU node, run
 """
 pip install --upgrade pip
-pip install --upgrade "jax[cuda]==0.2.25" -f https://storage.googleapis.com/jax-releases/jax_releases.html  # Note: wheels only available on linux.
+pip install jax[cuda11_cudnn805] -f https://storage.googleapis.com/jax-releases/jax_releases.html
 pip install tensorflow==2.7.0 flax einops tensorflow_datasets tbp-nightly
 
 # Clone repository and pull latest changes.
@@ -207,6 +207,7 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
       return -jnp.mean(jnp.sum(logp * labels, axis=1))
 
     def loss_fn(params, images, labels):
+      images = jnp.reshape(images, [-1, image_size, image_size, 3])
       logits = apply_fn(
           dict(params=params),
           rngs=dict(dropout=dropout_rng),
