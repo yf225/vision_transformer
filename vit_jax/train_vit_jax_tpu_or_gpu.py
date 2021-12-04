@@ -42,7 +42,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --devic
 
 CUDA_VISIBLE_DEVICES=0 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=eager --bits=16 --micro-batch-size=16
 
-CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=graph --bits=16 --micro-batch-size=64
+CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=graph --bits=16 --micro-batch-size=32
 """
 
 # How to view profiler trace on MBP
@@ -79,9 +79,9 @@ elif args.use_only_one_gpu:
 else:
   assert args.mode == "graph"
 if (args.use_only_one_gpu or args.use_only_one_tpu_core) and args.mode == "eager":
-  use_data_parallel = True
-else:
   use_data_parallel = False
+else:
+  use_data_parallel = True
 import jax
 import os
 if args.device == "tpu":
