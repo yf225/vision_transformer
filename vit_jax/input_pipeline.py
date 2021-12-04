@@ -241,10 +241,14 @@ def get_data(*,
   return data.prefetch(1)
 
 
-def prefetch(dataset, n_prefetch, devices=None):
+def prefetch(dataset, n_prefetch, devices=None, use_data_parallel=True):
   """Prefetches data to device and converts to numpy array."""
   ds_iter = iter(dataset)
-  ds_iter = map(lambda x: jax.tree_map(lambda t: np.expand_dims(t._numpy(), axis=0), x),
+  if not use_data_parallel:
+    ds_iter = map(lambda x: jax.tree_map(lambda t: np.expand_dims(t._numpy(), axis=0), x),
+                ds_iter)
+  else:
+    ds_iter = map(lambda x: jax.tree_map(lambda t: t._numpy(), x),
                 ds_iter)
   if n_prefetch:
     ds_iter = flax.jax_utils.prefetch_to_device(ds_iter, n_prefetch, devices=devices)
