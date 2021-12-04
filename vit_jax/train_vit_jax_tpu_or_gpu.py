@@ -255,7 +255,6 @@ def get_random_data(*, num_classes,
     data_image = tf.convert_to_tensor(np.random.randn(global_batch_size, image_size, image_size, 3) , dtype=input_dtype)
     data_label = tf.one_hot(np.zeros((global_batch_size,)), num_classes)
     assert data_image.shape == [global_batch_size, image_size, image_size, 3]
-    print("data_label.shape: ", data_label.shape)
     assert data_label.shape == [global_batch_size, num_classes]
     data = tf.data.Dataset.from_tensor_slices((
       data_image,
