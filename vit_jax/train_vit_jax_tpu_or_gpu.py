@@ -243,10 +243,16 @@ def get_random_data(*, num_classes,
 
   # Shard data such that it can be distributed accross devices
   def _shard(data_image, data_label):
-    data_image = tf.reshape(data_image,
-                              [num_devices, -1, image_size, image_size, 3])
-    data_label = tf.reshape(data_label,
-                              [num_devices, -1, num_classes])
+    if use_data_parallel:
+      data_image = tf.reshape(data_image,
+                                [num_devices, -1, image_size, image_size, 3])
+      data_label = tf.reshape(data_label,
+                                [num_devices, -1, num_classes])
+    else:
+      data_image = tf.reshape(data_image,
+                                [-1, image_size, image_size, 3])
+      data_label = tf.reshape(data_label,
+                                [-1, num_classes])
     return data_image, data_label
 
   data = data.map(_shard, tf.data.experimental.AUTOTUNE)
