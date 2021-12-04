@@ -200,7 +200,7 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
       dropout_rng = jax.random.fold_in(rng, jax.lax.axis_index('batch'))
     else:
       new_rng = rng
-      dropout_rng = rng
+      dropout_rng = random.PRNGKey(0)
 
     def cross_entropy_loss(*, logits, labels):
       logp = jax.nn.log_softmax(logits)
