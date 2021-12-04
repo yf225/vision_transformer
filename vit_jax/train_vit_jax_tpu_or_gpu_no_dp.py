@@ -269,10 +269,6 @@ def train():
 
   initial_step = 1
 
-  # Delete references to the objects that are not needed anymore
-  del opt
-  del params
-
   # Run training loop
   print_verbose('Starting training loop; initial compile can take a while...')
   step_start_time = time.time()
