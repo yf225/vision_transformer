@@ -19,6 +19,8 @@ export LD_LIBRARY_PATH=/usr/local/cuda-11.1/lib64:/usr/local/cuda-11.1/extras/CU
 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=eager --bits=16 --micro-batch-size=8
 
 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=graph --bits=16 --micro-batch-size=8
+
+python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --use_only_one_tpu_core=True --mode=eager --bits=16 --micro-batch-size=16
 """
 
 # Or, on AWS GPU node, run
@@ -186,8 +188,10 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
   """Returns update step for data parallel training."""
 
   def update_fn(opt, step, batch, rng):
-
-    _, new_rng = jax.random.split(rng)
+    if len(devices) > 1:
+      _, new_rng = jax.random.split(rng)
+    else:
+      new_rng = rng
     # Bind the rng key to the device id (which is unique across hosts)
     # Note: This is only used for multi-host training (i.e. multiple computers
     # each with multiple accelerators).
@@ -238,7 +242,7 @@ def get_random_data(*, num_classes,
                                [num_devices, -1, num_classes])
     return data_image, data_label
 
-  if num_devices is not None:
+  if num_devices > 1:
     data = data.map(_shard, tf.data.experimental.AUTOTUNE)
 
   return data.repeat(num_steps + 1).prefetch(2)
