@@ -189,14 +189,17 @@ class VisionTransformer(nn.Module):
   dtype: Dtype = jnp.bfloat16
   representation_size: Optional[int] = None
   classifier: str = 'token'
+  data_parallel: bool = False
 
   @nn.compact
   def __call__(self, inputs, *, train):
     x = inputs
 
     # Transformer.
-    print("x.shape: ", x.shape)
-    n, h, w, c = x.shape
+    if not self.data_parallel: # TODO: ugly hack, can probably improve later.
+      _, n, h, w, c = x.shape
+    else:
+      n, h, w, c = x.shape
     x = jnp.reshape(x, [n, (h // self.patch_size) * (w // self.patch_size), self.patch_size * self.patch_size * c])
 
     x = Encoder(
