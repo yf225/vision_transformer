@@ -91,7 +91,6 @@ if args.device == "tpu":
   if 'COLAB_TPU_ADDR' in os.environ:
     import jax.tools.colab_tpu
     jax.tools.colab_tpu.setup_tpu()
-  print(jax.local_devices()[0])
   assert "tpu" in str(jax.local_devices()[0]).lower()
   assert jax.local_device_count() == 8
   if args.use_only_two_tpu_cores:
@@ -216,6 +215,7 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
       return cross_entropy_loss(logits=logits, labels=labels)
 
     print("batch[0].shape: ", batch[0].shape)
+    print("batch[1].shape: ", batch[1].shape)
     l, g = utils.accumulate_gradient(
         jax.value_and_grad(loss_fn), opt.target, batch[0], batch[1],
         accum_steps)
