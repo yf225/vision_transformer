@@ -214,8 +214,6 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
           train=True)
       return cross_entropy_loss(logits=logits, labels=labels)
 
-    print("batch[0].shape: ", batch[0].shape)
-    print("batch[1].shape: ", batch[1].shape)
     l, g = utils.accumulate_gradient(
         jax.value_and_grad(loss_fn), opt.target, batch[0], batch[1],
         accum_steps)
@@ -286,10 +284,14 @@ def train():
   )
 
   def init_model():
+    if use_data_parallel:
+      # Discard the "num_local_devices" dimension for initialization.
+      init_batch = jnp.ones(batch[0].shape[1:], model.dtype)
+    else:
+      init_batch = jnp.ones(batch[0].shape, model.dtype)
     return model.init(
         jax.random.PRNGKey(0),
-        # Discard the "num_local_devices" dimension for initialization.
-        jnp.ones(batch[0].shape[1:], model.dtype),
+        init_batch,
         train=False)
 
   if args.mode == "eager":
