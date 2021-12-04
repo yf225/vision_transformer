@@ -122,7 +122,7 @@ tf.config.experimental.set_visible_devices([], 'GPU')
 
 DEBUG = False
 VERBOSE = True
-should_profile = True
+should_profile = False
 
 # Hyperparams
 num_attention_heads = 16
