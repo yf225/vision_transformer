@@ -3,7 +3,7 @@
 pip install --upgrade pip
 export PATH=/home/yfeng_us/.local/bin:${PATH}
 
-pip install "jax[tpu]>=0.2.16" -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
+pip install "jax[tpu]==0.2.25" -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
 sudo pip uninstall -y six typing-extensions tf-nightly
 pip install tensorflow==2.7.0 flax einops tensorflow_datasets
 
@@ -288,7 +288,7 @@ def train():
       # Discard the "num_local_devices" dimension for initialization.
       init_batch = jnp.ones(batch[0].shape[1:], model.dtype)
     else:
-      init_batch = jnp.ones(batch[0].shape, model.dtype)
+      init_batch = jnp.ones(batch[0].shape[1:], model.dtype)
     return model.init(
         jax.random.PRNGKey(0),
         init_batch,
