@@ -288,7 +288,7 @@ def train():
       # Discard the "num_local_devices" dimension for initialization.
       init_batch = jnp.ones(batch[0].shape[1:], model.dtype)
     else:
-      init_batch = jnp.ones(batch[0].shape, model.dtype)
+      init_batch = jnp.ones(batch[0].shape[1:], model.dtype)
     return model.init(
         jax.random.PRNGKey(0),
         init_batch,
