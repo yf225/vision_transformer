@@ -78,6 +78,10 @@ elif args.use_only_one_gpu:
   assert args.device == "gpu"
 else:
   assert args.mode == "graph"
+if (args.use_only_one_gpu or args.use_only_one_tpu_core) and args.mode == "eager":
+  use_data_parallel = True
+else:
+  use_data_parallel = False
 import jax
 import os
 if args.device == "tpu":
@@ -212,13 +216,14 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
     l, g = utils.accumulate_gradient(
         jax.value_and_grad(loss_fn), opt.target, batch[0], batch[1],
         accum_steps)
-    g = jax.tree_map(lambda x: jax.lax.pmean(x, axis_name='batch'), g)
-    l = jax.lax.pmean(l, axis_name='batch')
+    if use_data_parallel:
+      g = jax.tree_map(lambda x: jax.lax.pmean(x, axis_name='batch'), g)
+      l = jax.lax.pmean(l, axis_name='batch')
 
     opt = opt.apply_gradient(g, learning_rate=lr_fn(step))
     return opt, l, new_rng
 
-  if (args.use_only_one_gpu or args.use_only_one_tpu_core) and args.mode == "eager":
+  if not use_data_parallel:
     return update_fn
   else:
     return jax.pmap(update_fn, axis_name='batch', donate_argnums=(0,))
