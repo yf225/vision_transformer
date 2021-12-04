@@ -24,7 +24,7 @@ python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --use_only_one_tpu_core
 # Or, on AWS GPU node, run
 """
 pip install --upgrade pip
-pip install --upgrade "jax[cuda]" -f https://storage.googleapis.com/jax-releases/jax_releases.html  # Note: wheels only available on linux.
+pip install --upgrade "jax[cuda]==0.2.25" -f https://storage.googleapis.com/jax-releases/jax_releases.html  # Note: wheels only available on linux.
 pip install tensorflow==2.7.0 flax einops tensorflow_datasets tbp-nightly
 
 # Clone repository and pull latest changes.
@@ -287,7 +287,7 @@ def train():
     return model.init(
         jax.random.PRNGKey(0),
         # Discard the "num_local_devices" dimension for initialization.
-        init_batch = jnp.ones(batch[0].shape[1:], model.dtype),
+        jnp.ones(batch[0].shape[1:], model.dtype),
         train=False)
 
   if args.mode == "eager":
