@@ -292,7 +292,7 @@ def train():
   def init_model():
     return model.init(
         jax.random.PRNGKey(0),
-        jnp.ones(batch[0].shape[1:], model.dtype),
+        jnp.ones(batch[0].shape[1:], model.dtype) if use_data_parallel else jnp.ones(batch[0].shape, model.dtype),
         train=False)
 
   if args.mode == "eager":
