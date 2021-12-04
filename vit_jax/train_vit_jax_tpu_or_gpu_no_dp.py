@@ -70,8 +70,6 @@ args = parser.parse_args()
 assert args.use_only_one_tpu_core or args.use_only_one_gpu
 assert args.device in ["tpu", "gpu"]
 assert args.mode in ["eager", "graph"]
-if args.use_only_two_tpu_cores:
-  assert args.device == "tpu"
 elif args.use_only_one_tpu_core:
   assert args.device == "tpu"
 elif args.use_only_one_gpu:
