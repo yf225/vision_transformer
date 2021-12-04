@@ -284,10 +284,15 @@ def train():
   )
 
   def init_model():
-    model.input_is_4D = True
+    if use_data_parallel:
+      init_batch = jnp.ones(batch[0].shape[1:], model.dtype)
+      model.input_is_4D = True
+    else:
+      init_batch = jnp.ones(batch[0].shape, model.dtype)
+      model.input_is_4D = False
     return model.init(
         jax.random.PRNGKey(0),
-        jnp.ones(batch[0].shape[1:], model.dtype),
+        init_batch,
         train=False)
 
   if args.mode == "eager":
@@ -307,7 +312,10 @@ def train():
   total_steps = num_steps
   lr_fn = lambda lr: 0.001
 
-  model.input_is_4D = False
+  if use_data_parallel:
+    model.input_is_4D = True
+  else:
+    model.input_is_4D = False
   update_fn_repl = make_update_fn(
       apply_fn=model.apply, accum_steps=accum_steps, lr_fn=lr_fn)
 
