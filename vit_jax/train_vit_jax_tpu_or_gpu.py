@@ -207,7 +207,6 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
       return -jnp.mean(jnp.sum(logp * labels, axis=1))
 
     def loss_fn(params, images, labels):
-      model.input_is_4D = False
       logits = apply_fn(
           dict(params=params),
           rngs=dict(dropout=dropout_rng),
@@ -308,6 +307,7 @@ def train():
   total_steps = num_steps
   lr_fn = lambda lr: 0.001
 
+  model.input_is_4D = False
   update_fn_repl = make_update_fn(
       apply_fn=model.apply, accum_steps=accum_steps, lr_fn=lr_fn)
 
