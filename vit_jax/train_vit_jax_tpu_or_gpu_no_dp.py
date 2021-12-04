@@ -70,16 +70,6 @@ args = parser.parse_args()
 assert args.use_only_one_tpu_core or args.use_only_one_gpu
 assert args.device in ["tpu", "gpu"]
 assert args.mode in ["eager", "graph"]
-if args.use_only_one_tpu_core:
-  assert args.device == "tpu"
-elif args.use_only_one_gpu:
-  assert args.device == "gpu"
-else:
-  assert args.mode == "graph"
-if (args.use_only_one_gpu or args.use_only_one_tpu_core) and args.mode == "eager":
-  use_data_parallel = False
-else:
-  use_data_parallel = True
 import jax
 import os
 if args.device == "tpu":
