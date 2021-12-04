@@ -81,17 +81,12 @@ if args.device == "tpu":
   assert jax.local_device_count() == 8
   if args.use_only_two_tpu_cores:
     devices = jax.local_devices()[:2]
-  elif args.use_only_one_tpu_core:
-    devices = jax.local_devices()[:1]
   else:
     devices = jax.local_devices()
 elif args.device == "gpu":
   assert "gpu" in str(jax.local_devices()[0]).lower()
   assert jax.local_device_count() == len(os.environ["CUDA_VISIBLE_DEVICES"].split(","))
-  if args.use_only_one_gpu:
-    devices = jax.local_devices()[:1]
-  else:
-    devices = jax.local_devices()
+  devices = jax.local_devices()
 
 import functools
 import time
