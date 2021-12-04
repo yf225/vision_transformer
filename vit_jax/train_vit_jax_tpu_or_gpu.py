@@ -194,12 +194,13 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
   def update_fn(opt, step, batch, rng):
     if len(devices) > 1:
       _, new_rng = jax.random.split(rng)
+      # Bind the rng key to the device id (which is unique across hosts)
+      # Note: This is only used for multi-host training (i.e. multiple computers
+      # each with multiple accelerators).
+      dropout_rng = jax.random.fold_in(rng, jax.lax.axis_index('batch'))
     else:
       new_rng = rng
-    # Bind the rng key to the device id (which is unique across hosts)
-    # Note: This is only used for multi-host training (i.e. multiple computers
-    # each with multiple accelerators).
-    dropout_rng = jax.random.fold_in(rng, jax.lax.axis_index('batch'))
+      dropout_rng = rng
 
     def cross_entropy_loss(*, logits, labels):
       logp = jax.nn.log_softmax(logits)
