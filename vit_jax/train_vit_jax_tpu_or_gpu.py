@@ -235,21 +235,31 @@ def get_random_data(*, num_classes,
              image_size, global_batch_size, num_steps):
   num_devices = len(devices)
 
-  data = tf.data.Dataset.from_tensor_slices((
-    tf.convert_to_tensor(np.random.randn(1, global_batch_size, image_size, image_size, 3) , dtype=input_dtype),
-    # tf.one_hot(np.random.randint(0, num_classes, size=(1, global_batch_size, 1)), num_classes),
-    tf.one_hot(np.zeros((1, global_batch_size, 1)), num_classes),
-  ))
+  if use_data_parallel:
+    data = tf.data.Dataset.from_tensor_slices((
+      tf.convert_to_tensor(np.random.randn(1, global_batch_size, image_size, image_size, 3) , dtype=input_dtype),
+      # tf.one_hot(np.random.randint(0, num_classes, size=(1, global_batch_size, 1)), num_classes),
+      tf.one_hot(np.zeros((1, global_batch_size, 1)), num_classes),
+    ))
 
-  # Shard data such that it can be distributed accross devices
-  def _shard(data_image, data_label):
-    data_image = tf.reshape(data_image,
-                               [num_devices, -1, image_size, image_size, 3])
-    data_label = tf.reshape(data_label,
-                               [num_devices, -1, num_classes])
-    return data_image, data_label
+    # Shard data such that it can be distributed accross devices
+    def _shard(data_image, data_label):
+      data_image = tf.reshape(data_image,
+                                [num_devices, -1, image_size, image_size, 3])
+      data_label = tf.reshape(data_label,
+                                [num_devices, -1, num_classes])
+      return data_image, data_label
 
-  data = data.map(_shard, tf.data.experimental.AUTOTUNE)
+    data = data.map(_shard, tf.data.experimental.AUTOTUNE)
+  else:
+    data_image = tf.convert_to_tensor(np.random.randn(global_batch_size, image_size, image_size, 3) , dtype=input_dtype)
+    data_label = tf.one_hot(np.zeros((global_batch_size, 1)), num_classes)
+    assert data_image.shape == [global_batch_size, image_size, image_size, 3]
+    assert data_label.shape == [global_batch_size, num_classes]
+    data = tf.data.Dataset.from_tensor_slices((
+      data_image,
+      data_label,
+    ))
 
   return data.repeat(num_steps + 1).prefetch(2)
 
