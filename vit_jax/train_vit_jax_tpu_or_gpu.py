@@ -207,6 +207,7 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
       return -jnp.mean(jnp.sum(logp * labels, axis=1))
 
     def loss_fn(params, images, labels):
+      model.input_is_4D = False
       logits = apply_fn(
           dict(params=params),
           rngs=dict(dropout=dropout_rng),
@@ -284,14 +285,10 @@ def train():
   )
 
   def init_model():
-    if use_data_parallel:
-      # Discard the "num_local_devices" dimension for initialization.
-      init_batch = jnp.ones(batch[0].shape[1:], model.dtype)
-    else:
-      init_batch = jnp.ones(batch[0].shape[1:], model.dtype)
+    model.input_is_4D = True
     return model.init(
         jax.random.PRNGKey(0),
-        init_batch,
+        jnp.ones(batch[0].shape[1:], model.dtype),
         train=False)
 
   if args.mode == "eager":

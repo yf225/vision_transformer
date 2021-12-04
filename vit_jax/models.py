@@ -189,14 +189,14 @@ class VisionTransformer(nn.Module):
   dtype: Dtype = jnp.bfloat16
   representation_size: Optional[int] = None
   classifier: str = 'token'
-  data_parallel: bool = False
+  input_is_4D: bool = False
 
   @nn.compact
   def __call__(self, inputs, *, train):
     x = inputs
 
     # Transformer.
-    if not self.data_parallel: # TODO: ugly hack, can probably improve later.
+    if not self.input_is_4D: # TODO: ugly hack, can probably improve later.
       _, n, h, w, c = x.shape
     else:
       n, h, w, c = x.shape
