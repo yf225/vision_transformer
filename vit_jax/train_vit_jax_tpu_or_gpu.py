@@ -284,14 +284,10 @@ def train():
   )
 
   def init_model():
-    if use_data_parallel:
-      # Discard the "num_local_devices" dimension for initialization.
-      init_batch = jnp.ones(batch[0].shape[1:], model.dtype)
-    else:
-      init_batch = jnp.ones(batch[0].shape[1:], model.dtype)
     return model.init(
         jax.random.PRNGKey(0),
-        init_batch,
+        # Discard the "num_local_devices" dimension for initialization.
+        init_batch = jnp.ones(batch[0].shape[1:], model.dtype),
         train=False)
 
   if args.mode == "eager":
