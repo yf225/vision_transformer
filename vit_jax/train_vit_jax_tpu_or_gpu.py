@@ -61,27 +61,13 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--device", type=str)
 parser.add_argument("--use_only_two_tpu_cores", type=bool, default=False)  # only works for TPU
-parser.add_argument("--use_only_one_tpu_core", type=bool, default=False)  # only works for TPU
-parser.add_argument("--use_only_one_gpu", type=bool, default=False)  # only works for GPU
-parser.add_argument("--mode", type=str)
 parser.add_argument("--bits", type=int)
 parser.add_argument("--micro-batch-size", type=int)
 args = parser.parse_args()
 
 assert args.device in ["tpu", "gpu"]
-assert args.mode in ["eager", "graph"]
 if args.use_only_two_tpu_cores:
   assert args.device == "tpu"
-elif args.use_only_one_tpu_core:
-  assert args.device == "tpu"
-elif args.use_only_one_gpu:
-  assert args.device == "gpu"
-else:
-  assert args.mode == "graph"
-if (args.use_only_one_gpu or args.use_only_one_tpu_core) and args.mode == "eager":
-  use_data_parallel = False
-else:
-  use_data_parallel = True
 import jax
 import os
 if args.device == "tpu":
@@ -295,15 +281,11 @@ def train():
         jnp.ones(batch[0].shape[1:], model.dtype) if use_data_parallel else jnp.ones(batch[0].shape, model.dtype),
         train=False)
 
-  if args.mode == "eager":
-    print_verbose("Skipping jax.jit...")
-    variables = init_model()
-  elif args.mode == "graph":
-    # This compiles the model to XLA (takes some minutes the first time).
-    start_time = time.time()
-    print_verbose("jax.jit compiling...")
-    variables = jax.jit(init_model, backend='cpu')()
-    print_verbose("jax.jit compile time: {:.2f}s".format(time.time() - start_time))
+  # This compiles the model to XLA (takes some minutes the first time).
+  start_time = time.time()
+  print_verbose("jax.jit compiling...")
+  variables = jax.jit(init_model, backend='cpu')()
+  print_verbose("jax.jit compile time: {:.2f}s".format(time.time() - start_time))
 
   params = variables['params']
   param_count = sum(x.size for x in jax.tree_leaves(params))
@@ -357,7 +339,7 @@ def train():
   if should_profile:
     jax.profiler.stop_trace()
 
-  print("mode: {}, bits: {}, global_batch_size: {}, micro_batch_size: {}, median time / step: {}".format(args.mode, bits, global_batch_size, micro_batch_size, statistics.median(step_duration_list)))
+  print("bits: {}, global_batch_size: {}, micro_batch_size: {}, median time / step: {}".format(args.mode, bits, global_batch_size, micro_batch_size, statistics.median(step_duration_list)))
 
   return flax.jax_utils.unreplicate(opt_repl)
 
