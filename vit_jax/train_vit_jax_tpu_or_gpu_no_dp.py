@@ -110,7 +110,7 @@ import tensorflow as tf
 # Prevent TF from messing GPU state
 tf.config.experimental.set_visible_devices([], 'GPU')
 
-DEBUG = False
+DEBUG = True
 VERBOSE = True
 should_profile = True
 
