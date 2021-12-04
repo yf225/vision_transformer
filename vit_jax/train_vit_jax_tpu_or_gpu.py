@@ -207,6 +207,8 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
       return -jnp.mean(jnp.sum(logp * labels, axis=1))
 
     def loss_fn(params, images, labels):
+      if not use_data_parallel:
+        images = images[0]
       logits = apply_fn(
           dict(params=params),
           rngs=dict(dropout=dropout_rng),
