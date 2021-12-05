@@ -192,25 +192,20 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
           train=True)
       return cross_entropy_loss(logits=logits, labels=labels)
 
-    if args.mode == "graph":
-      l, g = utils.accumulate_gradient(
-          jax.value_and_grad(loss_fn), opt.target, batch[0], batch[1],
-          accum_steps)
-      g = jax.tree_map(lambda x: jax.lax.pmean(x, axis_name='batch'), g)
-      l = jax.lax.pmean(l, axis_name='batch')
-      opt = opt.apply_gradient(g, learning_rate=lr_fn(step))
-      return opt, l, new_rng
-    elif args.mode == "eager":
-      with jax.disable_jit():
-        l, g = utils.accumulate_gradient(
-            jax.value_and_grad(loss_fn), opt.target, batch[0], batch[1],
-            accum_steps)
-        g = jax.tree_map(lambda x: jax.lax.pmean(x, axis_name='batch'), g)
-        l = jax.lax.pmean(l, axis_name='batch')
-        opt = opt.apply_gradient(g, learning_rate=lr_fn(step))
-        return opt, l, new_rng
+    l, g = utils.accumulate_gradient(
+        jax.value_and_grad(loss_fn), opt.target, batch[0], batch[1],
+        accum_steps)
+    g = jax.tree_map(lambda x: jax.lax.pmean(x, axis_name='batch'), g)
+    l = jax.lax.pmean(l, axis_name='batch')
 
-  return jax.pmap(update_fn, axis_name='batch', donate_argnums=(0,))
+    opt = opt.apply_gradient(g, learning_rate=lr_fn(step))
+    return opt, l, new_rng
+
+  if args.mode == "eager":
+    with jax.disable_jit():
+      return jax.pmap(update_fn, axis_name='batch', donate_argnums=(0,))
+  elif args.mode == "graph":
+    return jax.pmap(update_fn, axis_name='batch', donate_argnums=(0,))
 
 
 def get_random_data(*, num_classes,
