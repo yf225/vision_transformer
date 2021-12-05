@@ -61,11 +61,13 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--device", type=str)
 parser.add_argument("--use_only_two_tpu_cores", type=bool, default=False)  # only works for TPU
+parser.add_argument("--mode", type=str)
 parser.add_argument("--bits", type=int)
 parser.add_argument("--micro-batch-size", type=int)
 args = parser.parse_args()
 
 assert args.device in ["tpu", "gpu"]
+assert args.mode in ["eager", "graph"]
 if args.use_only_two_tpu_cores:
   assert args.device == "tpu"
 import jax
@@ -172,16 +174,11 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
   """Returns update step for data parallel training."""
 
   def update_fn(opt, step, batch, rng):
-    if len(devices) > 1:
-      _, new_rng = jax.random.split(rng)
-      # Bind the rng key to the device id (which is unique across hosts)
-      # Note: This is only used for multi-host training (i.e. multiple computers
-      # each with multiple accelerators).
-      dropout_rng = jax.random.fold_in(rng, jax.lax.axis_index('batch'))
-    else:
-      # HACK
-      new_rng = jax.random.PRNGKey(0)
-      dropout_rng = jax.random.PRNGKey(0)
+    _, new_rng = jax.random.split(rng)
+    # Bind the rng key to the device id (which is unique across hosts)
+    # Note: This is only used for multi-host training (i.e. multiple computers
+    # each with multiple accelerators).
+    dropout_rng = jax.random.fold_in(rng, jax.lax.axis_index('batch'))
 
     def cross_entropy_loss(*, logits, labels):
       logp = jax.nn.log_softmax(logits)
@@ -195,14 +192,23 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
           train=True)
       return cross_entropy_loss(logits=logits, labels=labels)
 
-    l, g = utils.accumulate_gradient(
-        jax.value_and_grad(loss_fn), opt.target, batch[0], batch[1],
-        accum_steps)
-    g = jax.tree_map(lambda x: jax.lax.pmean(x, axis_name='batch'), g)
-    l = jax.lax.pmean(l, axis_name='batch')
-
-    opt = opt.apply_gradient(g, learning_rate=lr_fn(step))
-    return opt, l, new_rng
+    if args.mode == "graph":
+      l, g = utils.accumulate_gradient(
+          jax.value_and_grad(loss_fn), opt.target, batch[0], batch[1],
+          accum_steps)
+      g = jax.tree_map(lambda x: jax.lax.pmean(x, axis_name='batch'), g)
+      l = jax.lax.pmean(l, axis_name='batch')
+      opt = opt.apply_gradient(g, learning_rate=lr_fn(step))
+      return opt, l, new_rng
+    elif args.mode == "eager":
+      with jax.disable_jit():
+        l, g = utils.accumulate_gradient(
+            jax.value_and_grad(loss_fn), opt.target, batch[0], batch[1],
+            accum_steps)
+        g = jax.tree_map(lambda x: jax.lax.pmean(x, axis_name='batch'), g)
+        l = jax.lax.pmean(l, axis_name='batch')
+        opt = opt.apply_gradient(g, learning_rate=lr_fn(step))
+        return opt, l, new_rng
 
   return jax.pmap(update_fn, axis_name='batch', donate_argnums=(0,))
 
@@ -259,7 +265,11 @@ def train():
   # This compiles the model to XLA (takes some minutes the first time).
   start_time = time.time()
   print_verbose("jax.jit compiling...")
-  variables = jax.jit(init_model, backend='cpu')()
+  if args.mode == "eager":
+    with jax.disable_jit():
+      variables = init_model()
+  elif args.mode == "graph":
+    variables = jax.jit(init_model, backend='cpu')()
   print_verbose("jax.jit compile time: {:.2f}s".format(time.time() - start_time))
 
   params = variables['params']
