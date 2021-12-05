@@ -40,9 +40,9 @@ export XLA_PYTHON_CLIENT_ALLOCATOR=platform
 export PATH=/usr/local/cuda-11.1/bin:${PATH}
 export LD_LIBRARY_PATH=/usr/local/cuda-11.1/lib64:/usr/local/cuda-11.1/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
 
-CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=eager --bits=16 --micro-batch-size=16
+JAX_CPP_PMAP=0 JAX_CPP_JIT=0 CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=eager --bits=16 --micro-batch-size=16
 
-CUDA_VISIBLE_DEVICES=0 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=eager --bits=16 --micro-batch-size=16
+JAX_CPP_PMAP=0 JAX_CPP_JIT=0 CUDA_VISIBLE_DEVICES=0 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=eager --bits=16 --micro-batch-size=16
 
 CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=graph --bits=16 --micro-batch-size=32
 """
@@ -259,17 +259,7 @@ def train():
         jnp.ones(batch[0].shape[1:], model.dtype),
         train=False)
 
-  # This compiles the model to XLA (takes some minutes the first time).
-  start_time = time.time()
-  if args.mode == "eager":
-    print_verbose("init_model no jax.jit...")
-    with jax.disable_jit():
-      variables = init_model()
-    print_verbose("init_model time (no jax.jit): {:.2f}s".format(time.time() - start_time))
-  elif args.mode == "graph":
-    print_verbose("init_model with jax.jit...")
-    variables = jax.jit(init_model, backend='cpu')()
-    print_verbose("init_model time (with jax.jit): {:.2f}s".format(time.time() - start_time))
+  variables = init_model()
 
   params = variables['params']
   param_count = sum(x.size for x in jax.tree_leaves(params))

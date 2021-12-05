@@ -18,7 +18,7 @@ python3 vit_jax/train_vit_jax_tpu_or_gpu_no_dp.py --device=tpu --mode=eager --bi
 
 python3 vit_jax/train_vit_jax_tpu_or_gpu_no_dp.py --device=tpu --mode=graph --bits=16 --micro-batch-size=8
 
-python3 vit_jax/train_vit_jax_tpu_or_gpu_no_dp.py --device=tpu --use_only_one_tpu_core=True --mode=eager --bits=16 --micro-batch-size=1
+python3 vit_jax/train_vit_jax_tpu_or_gpu_no_dp.py --device=tpu --use_only_one_tpu_core=True --mode=eager --bits=16 --micro-batch-size=16
 
 python3 vit_jax/train_vit_jax_tpu_or_gpu_no_dp.py --device=tpu --use_only_one_tpu_core=True --mode=graph --bits=16 --micro-batch-size=1
 """
