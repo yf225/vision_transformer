@@ -254,9 +254,11 @@ def train():
   update_fn_obj = make_update_fn(
       apply_fn=model.apply, accum_steps=accum_steps, lr_fn=lr_fn)
 
-  opt = momentum_clip.Optimizer(dtype=opt_dtype).create(params)
+  opt = jax.device_put(momentum_clip.Optimizer(dtype=opt_dtype).create(params), device)
 
   initial_step = 1
+
+  rng = jax.device_put(jax.random.PRNGKey(0), device)
 
   # Run training loop
   print_verbose('Starting training loop; initial compile can take a while...')
@@ -271,7 +273,7 @@ def train():
       input_pipeline.prefetch(ds_train, None, devices=devices)):
 
     opt, loss, _ = update_fn_obj(
-        opt, step, batch, jax.random.PRNGKey(0))
+        opt, step, batch, rng)
 
     train_loss = loss
 

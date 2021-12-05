@@ -14,7 +14,9 @@ cd vision_transformer/
 
 export PYTHONPATH=/home/yfeng_us/vision_transformer:${PYTHONPATH}
 
-python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=eager --bits=16 --micro-batch-size=44
+python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=eager --bits=16 --micro-batch-size=16
+
+JAX_CPP_PMAP=0 JAX_CPP_JIT=0 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=eager --bits=16 --micro-batch-size=16
 
 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=graph --bits=16 --micro-batch-size=8
 
