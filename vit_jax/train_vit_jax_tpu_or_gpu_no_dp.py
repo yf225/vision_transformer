@@ -255,6 +255,7 @@ def train():
       apply_fn=model.apply, accum_steps=accum_steps, lr_fn=lr_fn)
 
   opt = jax.device_put(momentum_clip.Optimizer(dtype=opt_dtype).create(params), device)
+  del params
 
   initial_step = 1
 
