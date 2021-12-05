@@ -173,9 +173,6 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
   """Returns update step for data parallel training."""
 
   def update_fn(opt, step, batch, rng):
-    new_rng = jax.random.PRNGKey(0)
-    dropout_rng = jax.random.PRNGKey(0)
-
     def cross_entropy_loss(*, logits, labels):
       logp = jax.nn.log_softmax(logits)
       return -jnp.mean(jnp.sum(logp * labels, axis=1))
@@ -183,7 +180,7 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
     def loss_fn(params, images, labels):
       logits = apply_fn(
           dict(params=params),
-          rngs=dict(dropout=dropout_rng),
+          rngs=dict(dropout=rng),
           inputs=images,
           train=True)
       return cross_entropy_loss(logits=logits, labels=labels)
@@ -193,7 +190,7 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
         accum_steps)
 
     opt = opt.apply_gradient(g, learning_rate=lr_fn(step))
-    return opt, l, new_rng
+    return opt, l, rng
 
   return update_fn
 
