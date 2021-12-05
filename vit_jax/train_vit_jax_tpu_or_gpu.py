@@ -14,11 +14,11 @@ cd vision_transformer/
 
 export PYTHONPATH=/home/yfeng_us/vision_transformer:${PYTHONPATH}
 
-python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=eager --bits=16 --micro-batch-size=8
+python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=eager --bits=16 --micro-batch-size=44
 
 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=graph --bits=16 --micro-batch-size=8
 
-python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --use_only_one_tpu_core=True --mode=eager --bits=16 --micro-batch-size=16
+python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --use_only_one_tpu_core=True --mode=eager --bits=16 --micro-batch-size=44
 """
 
 # Or, on AWS GPU node, run
@@ -264,13 +264,15 @@ def train():
 
   # This compiles the model to XLA (takes some minutes the first time).
   start_time = time.time()
-  print_verbose("jax.jit compiling...")
   if args.mode == "eager":
+    print_verbose("init_model no jax.jit...")
     with jax.disable_jit():
       variables = init_model()
+    print_verbose("init_model time (no jax.jit): {:.2f}s".format(time.time() - start_time))
   elif args.mode == "graph":
+    print_verbose("init_model with jax.jit...")
     variables = jax.jit(init_model, backend='cpu')()
-  print_verbose("jax.jit compile time: {:.2f}s".format(time.time() - start_time))
+    print_verbose("init_model time (with jax.jit): {:.2f}s".format(time.time() - start_time))
 
   params = variables['params']
   param_count = sum(x.size for x in jax.tree_leaves(params))
