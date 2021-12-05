@@ -262,15 +262,13 @@ def train():
   # This compiles the model to XLA (takes some minutes the first time).
   start_time = time.time()
   if args.mode == "eager":
-    print_verbose("init_model no jax.jit...")
     with jax.disable_jit():
       variables = init_model()
-    print_verbose("init_model time (no jax.jit): {:.2f}s".format(time.time() - start_time))
+    print_verbose("init_model time (with disable_jit): {:.2f}s".format(time.time() - start_time))
   elif args.mode == "graph":
-    print_verbose("init_model with jax.jit...")
     variables = init_model()
     # variables = jax.jit(init_model, backend='cpu')()  # TODO: Do we actually need this?
-    print_verbose("init_model time (with jax.jit): {:.2f}s".format(time.time() - start_time))
+    print_verbose("init_model time (no disable_jit): {:.2f}s".format(time.time() - start_time))
 
   params = variables['params']
   param_count = sum(x.size for x in jax.tree_leaves(params))
