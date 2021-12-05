@@ -169,32 +169,6 @@ from vit_jax import momentum_clip
 from vit_jax import utils
 
 
-def make_update_fn(*, apply_fn, accum_steps, lr_fn):
-  """Returns update step for data parallel training."""
-
-  def update_fn(opt, step, batch, rng):
-    def cross_entropy_loss(*, logits, labels):
-      logp = jax.nn.log_softmax(logits)
-      return -jnp.mean(jnp.sum(logp * labels, axis=1))
-
-    def loss_fn(params, images, labels):
-      logits = apply_fn(
-          dict(params=params),
-          rngs=dict(dropout=rng),
-          inputs=images,
-          train=True)
-      return cross_entropy_loss(logits=logits, labels=labels)
-
-    l, g = utils.accumulate_gradient(
-        jax.value_and_grad(loss_fn), opt.target, batch[0], batch[1],
-        accum_steps)
-
-    opt = opt.apply_gradient(g, learning_rate=lr_fn(step))
-    return opt, l, rng
-
-  return update_fn
-
-
 def get_random_data(*, num_classes,
              image_size, global_batch_size, num_steps):
   num_devices = len(devices)
@@ -249,13 +223,6 @@ def train():
   print_verbose("param_count: {}".format(str(param_count)))
 
   total_steps = num_steps
-  lr_fn = lambda lr: 0.001
-
-  update_fn_obj = make_update_fn(
-      apply_fn=model.apply, accum_steps=accum_steps, lr_fn=lr_fn)
-
-  opt = jax.device_put(momentum_clip.Optimizer(dtype=opt_dtype).create(params), device)
-  del params
 
   initial_step = 1
 
@@ -269,14 +236,23 @@ def train():
   if should_profile:
     jax.profiler.start_trace("./tensorboard_trace")
 
+  def cross_entropy_loss(*, logits, labels):
+    logp = jax.nn.log_softmax(logits)
+    return -jnp.mean(jnp.sum(logp * labels, axis=1))
+
+  def loss_fn(apply_fn, params, images, labels):
+    logits = apply_fn(
+        dict(params=params),
+        rngs=dict(dropout=rng),
+        inputs=images,
+        train=True)
+    return cross_entropy_loss(logits=logits, labels=labels)
+
   for step, batch in zip(
       range(initial_step, total_steps + 1),
       input_pipeline.prefetch(ds_train, None, devices=devices)):
 
-    opt, loss, _ = update_fn_obj(
-        opt, step, batch, rng)
-
-    train_loss = loss
+    train_loss = loss_fn(model.apply, params, batch[0], batch[1])
 
     time_spent = time.time() - step_start_time
     step_duration_list.append(time_spent)
