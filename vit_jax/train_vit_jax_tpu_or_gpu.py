@@ -268,7 +268,8 @@ def train():
     print_verbose("init_model time (no jax.jit): {:.2f}s".format(time.time() - start_time))
   elif args.mode == "graph":
     print_verbose("init_model with jax.jit...")
-    variables = jax.jit(init_model, backend='cpu')()  # TODO: Do we actually need this?
+    variables = init_model()
+    # variables = jax.jit(init_model, backend='cpu')()  # TODO: Do we actually need this?
     print_verbose("init_model time (with jax.jit): {:.2f}s".format(time.time() - start_time))
 
   params = variables['params']
