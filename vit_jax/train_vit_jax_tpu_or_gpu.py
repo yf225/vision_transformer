@@ -16,7 +16,7 @@ export PYTHONPATH=/home/yfeng_us/vision_transformer:${PYTHONPATH}
 
 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=eager --bits=16 --micro-batch-size=16
 
-JAX_CPP_PMAP=0 JAX_CPP_JIT=0 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=eager --bits=16 --micro-batch-size=16
+python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=eager --bits=16 --micro-batch-size=16
 
 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=graph --bits=16 --micro-batch-size=8
 
@@ -40,7 +40,6 @@ git clone --depth=1 https://github.com/yf225/vision_transformer -b vit_dummy_dat
 cd vision_transformer/
 
 export PYTHONPATH=/fsx/users/willfeng/repos/vision_transformer:${PYTHONPATH}
-export XLA_PYTHON_CLIENT_ALLOCATOR=platform
 export PATH=/usr/local/cuda-11.1/bin:${PATH}
 export LD_LIBRARY_PATH=/usr/local/cuda-11.1/lib64:/usr/local/cuda-11.1/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
 
