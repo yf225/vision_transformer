@@ -37,11 +37,11 @@ cd vision_transformer/
 export PYTHONPATH=/fsx/users/willfeng/repos/vision_transformer:${PYTHONPATH}
 export XLA_PYTHON_CLIENT_ALLOCATOR=platform
 
-CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=eager --bits=16 --micro-batch-size=16
+CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu_dec1.py --device=gpu --mode=eager --bits=16 --micro-batch-size=64
 
-CUDA_VISIBLE_DEVICES=0 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=eager --bits=16 --micro-batch-size=16
+CUDA_VISIBLE_DEVICES=0 python3 vit_jax/train_vit_jax_tpu_or_gpu_dec1.py --device=gpu --mode=eager --bits=16 --micro-batch-size=16
 
-CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=graph --bits=16 --micro-batch-size=64
+CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu_dec1.py --device=gpu --mode=graph --bits=16 --micro-batch-size=64
 """
 
 # How to view profiler trace on MBP
@@ -83,6 +83,7 @@ if args.device == "tpu":
 elif args.device == "gpu":
   assert "gpu" in str(jax.local_devices()[0]).lower()
   assert jax.local_device_count() == len(os.environ["CUDA_VISIBLE_DEVICES"].split(","))
+  devices = jax.local_devices()
 
 import functools
 import time
