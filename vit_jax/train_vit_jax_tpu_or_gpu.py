@@ -25,7 +25,11 @@ python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --use_only_one_tpu_core
 
 # Or, on AWS GPU node, run
 """
+# conda create -y -n jax python=3.8
+conda activate jax
+
 pip install --upgrade pip
+pip uninstall -y jaxlib jax
 pip install jax[cuda11_cudnn805] -f https://storage.googleapis.com/jax-releases/jax_releases.html
 pip install tensorflow==2.7.0 flax einops tensorflow_datasets tbp-nightly
 
