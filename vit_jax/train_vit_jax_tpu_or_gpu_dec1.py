@@ -23,6 +23,9 @@ python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=graph --bits=16 
 
 # Or, on AWS GPU node, run
 """
+# conda create -y -n jax python=3.8
+conda activate jax
+
 pip install --upgrade pip
 pip uninstall -y jaxlib jax
 pip install --upgrade "jax[cuda]" -f https://storage.googleapis.com/jax-releases/jax_releases.html  # Note: wheels only available on linux.
@@ -59,7 +62,6 @@ tensorboard --logdir=~/jax_gpu_tensorboard_trace
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--device", type=str)
-parser.add_argument("--use_only_two_tpu_cores", type=bool, default=False)  # only works for TPU
 parser.add_argument("--mode", type=str)
 parser.add_argument("--bits", type=int)
 parser.add_argument("--micro-batch-size", type=int)
@@ -76,14 +78,11 @@ if args.device == "tpu":
   if 'COLAB_TPU_ADDR' in os.environ:
     import jax.tools.colab_tpu
     jax.tools.colab_tpu.setup_tpu()
-  print(jax.local_devices()[0])
   assert "tpu" in str(jax.local_devices()[0]).lower()
   assert jax.local_device_count() == 8
-  devices = jax.local_devices()[:2] if args.use_only_two_tpu_cores else jax.local_devices()
 elif args.device == "gpu":
   assert "gpu" in str(jax.local_devices()[0]).lower()
   assert jax.local_device_count() == len(os.environ["CUDA_VISIBLE_DEVICES"].split(","))
-  devices = jax.local_devices()
 
 import functools
 import time
@@ -202,7 +201,7 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
 
 def get_random_data(*, num_classes,
              image_size, global_batch_size, num_steps):
-  num_devices = len(devices)
+  num_devices = jax.local_device_count()
 
   data = tf.data.Dataset.from_tensor_slices((
     tf.convert_to_tensor(np.random.randn(1, global_batch_size, image_size, image_size, 3) , dtype=input_dtype),
@@ -228,7 +227,7 @@ def train():
   """Runs training interleaved with evaluation."""
 
   # Setup input pipeline
-  global_batch_size = micro_batch_size * len(devices)
+  global_batch_size = micro_batch_size * jax.local_device_count()
   ds_train = get_random_data(num_classes=num_classes, image_size=image_size, global_batch_size=global_batch_size, num_steps=num_steps)
   batch = next(iter(ds_train))
   print_verbose((batch[0].shape, batch[1].shape))
@@ -275,14 +274,14 @@ def train():
   opt = momentum_clip.Optimizer(dtype=opt_dtype).create(params)
 
   initial_step = 1
-  opt_repl = flax.jax_utils.replicate(opt, devices)
+  opt_repl = flax.jax_utils.replicate(opt)
 
   # Delete references to the objects that are not needed anymore
   del opt
   del params
 
   # Prepare the learning-rate and pre-fetch it to device to avoid delays.
-  update_rng_repl = flax.jax_utils.replicate(jax.random.PRNGKey(0), devices)
+  update_rng_repl = flax.jax_utils.replicate(jax.random.PRNGKey(0))
 
   # Run training loop
   print_verbose('Starting training loop; initial compile can take a while...')
@@ -294,10 +293,10 @@ def train():
 
   for step, batch in zip(
       range(initial_step, total_steps + 1),
-      input_pipeline.prefetch(ds_train, n_prefetch=2, devices=devices)):
+      input_pipeline.prefetch(ds_train, n_prefetch=2)):
 
     opt_repl, loss_repl, update_rng_repl = update_fn_repl(
-        opt_repl, flax.jax_utils.replicate(step, devices), batch, update_rng_repl)
+        opt_repl, flax.jax_utils.replicate(step), batch, update_rng_repl)
 
     train_loss = float(flax.jax_utils.unreplicate(loss_repl))
 
