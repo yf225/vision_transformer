@@ -292,6 +292,7 @@ def train():
   # Delete references to the objects that are not needed anymore
   del opt
   del params
+  del variables
 
   # Prepare the learning-rate and pre-fetch it to device to avoid delays.
   update_rng_repl = flax.jax_utils.replicate(jax.random.PRNGKey(0), devices)
