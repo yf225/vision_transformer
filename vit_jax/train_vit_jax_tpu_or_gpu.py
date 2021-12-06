@@ -147,7 +147,7 @@ print("micro_batch_size: {}".format(micro_batch_size))
 
 num_steps = 20
 accum_steps = 1  # How many steps to accumulate gradients for, before the gradient update
-learning_rate = 0.001
+learning_rate = 1e-6
 
 image_size = 224
 patch_size = 16  # Size of the patches to be extract from the input images
