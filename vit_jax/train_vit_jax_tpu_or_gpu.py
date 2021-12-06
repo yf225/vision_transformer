@@ -44,11 +44,11 @@ export XLA_PYTHON_CLIENT_ALLOCATOR=platform
 export PATH=/usr/local/cuda-11.1/bin:${PATH}
 export LD_LIBRARY_PATH=/usr/local/cuda-11.1/lib64:/usr/local/cuda-11.1/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
 
-JAX_CPP_PMAP=0 JAX_CPP_JIT=0 CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=eager --bits=16 --micro-batch-size=16
+CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=eager --bits=16 --micro-batch-size=64
 
-JAX_CPP_PMAP=0 JAX_CPP_JIT=0 CUDA_VISIBLE_DEVICES=0 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=eager --bits=16 --micro-batch-size=16
+CUDA_VISIBLE_DEVICES=0 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=eager --bits=16 --micro-batch-size=16
 
-CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=graph --bits=16 --micro-batch-size=32
+CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=graph --bits=16 --micro-batch-size=64
 """
 
 # How to view profiler trace on MBP
@@ -270,8 +270,7 @@ def train():
       variables = init_model()
     print_verbose("init_model time (with disable_jit): {:.2f}s".format(time.time() - start_time))
   elif args.mode == "graph":
-    variables = init_model()
-    # variables = jax.jit(init_model, backend='cpu')()  # TODO: Do we actually need this?
+    variables = jax.jit(init_model, backend='cpu')()
     print_verbose("init_model time (no disable_jit): {:.2f}s".format(time.time() - start_time))
 
   params = variables['params']
