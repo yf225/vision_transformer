@@ -13,19 +13,18 @@ git clone --depth=1 https://github.com/yf225/vision_transformer -b vit_dummy_dat
 cd vision_transformer/
 
 export PYTHONPATH=/home/yfeng_us/vision_transformer:${PYTHONPATH}
+export PATH=/usr/local/cuda-11.1/bin:${PATH}
+export LD_LIBRARY_PATH=/usr/local/cuda-11.1/lib64:/usr/local/cuda-11.1/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
 
-python3 vit_jax/train_vit_jax_tpu_or_gpu_no_dp.py --device=tpu --mode=eager --bits=16 --micro-batch-size=8
+python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=eager --bits=16 --micro-batch-size=8
 
-python3 vit_jax/train_vit_jax_tpu_or_gpu_no_dp.py --device=tpu --mode=graph --bits=16 --micro-batch-size=8
-
-python3 vit_jax/train_vit_jax_tpu_or_gpu_no_dp.py --device=tpu --use_only_one_tpu_core=True --mode=eager --bits=16 --micro-batch-size=16
-
-python3 vit_jax/train_vit_jax_tpu_or_gpu_no_dp.py --device=tpu --use_only_one_tpu_core=True --mode=graph --bits=16 --micro-batch-size=1
+python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=graph --bits=16 --micro-batch-size=8
 """
 
 # Or, on AWS GPU node, run
 """
 pip install --upgrade pip
+pip uninstall -y jaxlib jax
 pip install --upgrade "jax[cuda]" -f https://storage.googleapis.com/jax-releases/jax_releases.html  # Note: wheels only available on linux.
 pip install tensorflow==2.7.0 flax einops tensorflow_datasets tbp-nightly
 
@@ -37,12 +36,12 @@ cd vision_transformer/
 
 export PYTHONPATH=/fsx/users/willfeng/repos/vision_transformer:${PYTHONPATH}
 export XLA_PYTHON_CLIENT_ALLOCATOR=platform
-export PATH=/usr/local/cuda-11.1/bin:${PATH}
-export LD_LIBRARY_PATH=/usr/local/cuda-11.1/lib64:/usr/local/cuda-11.1/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
 
-CUDA_VISIBLE_DEVICES=0 python3 vit_jax/train_vit_jax_tpu_or_gpu_no_dp.py --device=gpu --use_only_one_gpu=true --mode=eager --bits=16 --micro-batch-size=16
+CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=eager --bits=16 --micro-batch-size=16
 
-CUDA_VISIBLE_DEVICES=0 python3 vit_jax/train_vit_jax_tpu_or_gpu_no_dp.py --device=gpu --use_only_one_gpu=true --mode=graph --bits=16 --micro-batch-size=16
+CUDA_VISIBLE_DEVICES=0 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=eager --bits=16 --micro-batch-size=16
+
+CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=graph --bits=16 --micro-batch-size=64
 """
 
 # How to view profiler trace on MBP
@@ -60,14 +59,12 @@ tensorboard --logdir=~/jax_gpu_tensorboard_trace
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--device", type=str)
-parser.add_argument("--use_only_one_tpu_core", type=bool, default=False)  # only works for TPU
-parser.add_argument("--use_only_one_gpu", type=bool, default=False)  # only works for GPU
+parser.add_argument("--use_only_two_tpu_cores", type=bool, default=False)  # only works for TPU
 parser.add_argument("--mode", type=str)
 parser.add_argument("--bits", type=int)
 parser.add_argument("--micro-batch-size", type=int)
 args = parser.parse_args()
 
-assert args.use_only_one_tpu_core or args.use_only_one_gpu
 assert args.device in ["tpu", "gpu"]
 assert args.mode in ["eager", "graph"]
 import jax
@@ -79,13 +76,13 @@ if args.device == "tpu":
   if 'COLAB_TPU_ADDR' in os.environ:
     import jax.tools.colab_tpu
     jax.tools.colab_tpu.setup_tpu()
+  print(jax.local_devices()[0])
   assert "tpu" in str(jax.local_devices()[0]).lower()
   assert jax.local_device_count() == 8
+  devices = jax.local_devices()[:2] if args.use_only_two_tpu_cores else jax.local_devices()
 elif args.device == "gpu":
   assert "gpu" in str(jax.local_devices()[0]).lower()
   assert jax.local_device_count() == len(os.environ["CUDA_VISIBLE_DEVICES"].split(","))
-device = jax.local_devices()[0]
-devices = [device]
 
 import functools
 import time
@@ -101,7 +98,7 @@ import tensorflow as tf
 tf.config.experimental.set_visible_devices([], 'GPU')
 
 DEBUG = False
-VERBOSE = True
+VERBOSE = False
 should_profile = True
 
 # Hyperparams
@@ -167,6 +164,41 @@ from vit_jax import momentum_clip
 from vit_jax import utils
 
 
+def make_update_fn(*, apply_fn, accum_steps, lr_fn):
+  """Returns update step for data parallel training."""
+
+  def update_fn(opt, step, batch, rng):
+
+    _, new_rng = jax.random.split(rng)
+    # Bind the rng key to the device id (which is unique across hosts)
+    # Note: This is only used for multi-host training (i.e. multiple computers
+    # each with multiple accelerators).
+    dropout_rng = jax.random.fold_in(rng, jax.lax.axis_index('batch'))
+
+    def cross_entropy_loss(*, logits, labels):
+      logp = jax.nn.log_softmax(logits)
+      return -jnp.mean(jnp.sum(logp * labels, axis=1))
+
+    def loss_fn(params, images, labels):
+      logits = apply_fn(
+          dict(params=params),
+          rngs=dict(dropout=dropout_rng),
+          inputs=images,
+          train=True)
+      return cross_entropy_loss(logits=logits, labels=labels)
+
+    l, g = utils.accumulate_gradient(
+        jax.value_and_grad(loss_fn), opt.target, batch[0], batch[1],
+        accum_steps)
+    g = jax.tree_map(lambda x: jax.lax.pmean(x, axis_name='batch'), g)
+    l = jax.lax.pmean(l, axis_name='batch')
+
+    opt = opt.apply_gradient(g, learning_rate=lr_fn(step))
+    return opt, l, new_rng
+
+  return jax.pmap(update_fn, axis_name='batch', donate_argnums=(0,))
+
+
 def get_random_data(*, num_classes,
              image_size, global_batch_size, num_steps):
   num_devices = len(devices)
@@ -176,6 +208,17 @@ def get_random_data(*, num_classes,
     # tf.one_hot(np.random.randint(0, num_classes, size=(1, global_batch_size, 1)), num_classes),
     tf.one_hot(np.zeros((1, global_batch_size, 1)), num_classes),
   ))
+
+  # Shard data such that it can be distributed accross devices
+  def _shard(data_image, data_label):
+    data_image = tf.reshape(data_image,
+                               [num_devices, -1, image_size, image_size, 3])
+    data_label = tf.reshape(data_label,
+                               [num_devices, -1, num_classes])
+    return data_image, data_label
+
+  if num_devices is not None:
+    data = data.map(_shard, tf.data.experimental.AUTOTUNE)
 
   return data.repeat(num_steps + 1).prefetch(2)
 
@@ -203,7 +246,8 @@ def train():
   def init_model():
     return model.init(
         jax.random.PRNGKey(0),
-        jnp.ones(batch[0].shape, model.dtype),
+        # Discard the "num_local_devices" dimension for initialization.
+        jnp.ones(batch[0].shape[1:], model.dtype),
         train=False)
 
   if args.mode == "eager":
@@ -216,15 +260,28 @@ def train():
     variables = jax.jit(init_model, backend='cpu')()
     print_verbose("jax.jit compile time: {:.2f}s".format(time.time() - start_time))
 
-  params = jax.device_put(variables['params'], device)
+  params = variables['params']
   param_count = sum(x.size for x in jax.tree_leaves(params))
   print_verbose("param_count: {}".format(str(param_count)))
 
   total_steps = num_steps
+  lr_fn = lambda lr: 0.001
+
+  update_fn_repl = make_update_fn(
+      apply_fn=model.apply, accum_steps=accum_steps, lr_fn=lr_fn)
+
+  # Create optimizer and replicate it over all TPUs/GPUs
+  opt = momentum_clip.Optimizer(dtype=opt_dtype).create(params)
 
   initial_step = 1
+  opt_repl = flax.jax_utils.replicate(opt, devices)
 
-  rng = jax.device_put(jax.random.PRNGKey(0), device)
+  # Delete references to the objects that are not needed anymore
+  del opt
+  del params
+
+  # Prepare the learning-rate and pre-fetch it to device to avoid delays.
+  update_rng_repl = flax.jax_utils.replicate(jax.random.PRNGKey(0), devices)
 
   # Run training loop
   print_verbose('Starting training loop; initial compile can take a while...')
@@ -234,23 +291,14 @@ def train():
   if should_profile:
     jax.profiler.start_trace("./tensorboard_trace")
 
-  def cross_entropy_loss(*, logits, labels):
-    logp = jax.nn.log_softmax(logits)
-    return -jnp.mean(jnp.sum(logp * labels, axis=1))
-
-  def loss_fn(apply_fn, params, images, labels):
-    logits = apply_fn(
-        dict(params=params),
-        rngs=dict(dropout=rng),
-        inputs=images,
-        train=True)
-    return cross_entropy_loss(logits=logits, labels=labels)
-
   for step, batch in zip(
       range(initial_step, total_steps + 1),
-      input_pipeline.prefetch(ds_train, None, devices=devices)):
+      input_pipeline.prefetch(ds_train, n_prefetch=2, devices=devices)):
 
-    train_loss = loss_fn(model.apply, params, batch[0], batch[1])
+    opt_repl, loss_repl, update_rng_repl = update_fn_repl(
+        opt_repl, flax.jax_utils.replicate(step, devices), batch, update_rng_repl)
+
+    train_loss = float(flax.jax_utils.unreplicate(loss_repl))
 
     time_spent = time.time() - step_start_time
     step_duration_list.append(time_spent)
@@ -266,6 +314,6 @@ def train():
 
   print("mode: {}, bits: {}, global_batch_size: {}, micro_batch_size: {}, median time / step: {}".format(args.mode, bits, global_batch_size, micro_batch_size, statistics.median(step_duration_list)))
 
-  return None
+  return flax.jax_utils.unreplicate(opt_repl)
 
 train()
