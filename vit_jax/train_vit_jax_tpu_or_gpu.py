@@ -21,6 +21,8 @@ python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=eager --bits=16 
 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=graph --bits=16 --micro-batch-size=8
 
 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --use_only_two_tpu_cores=True --mode=eager --bits=16 --micro-batch-size=32
+
+python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --no_pointwise_ops=True --mode=eager --bits=16 --micro-batch-size=192
 """
 
 # Or, on AWS GPU node, run
@@ -46,6 +48,8 @@ export LD_LIBRARY_PATH=/usr/local/cuda-11.1/lib64:/usr/local/cuda-11.1/extras/CU
 CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=eager --bits=16 --micro-batch-size=64
 
 CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=graph --bits=16 --micro-batch-size=64
+
+CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --no_pointwise_ops=True --mode=graph --bits=16 --micro-batch-size=64
 
 CUDA_VISIBLE_DEVICES=0 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=eager --bits=16 --micro-batch-size=32
 """
