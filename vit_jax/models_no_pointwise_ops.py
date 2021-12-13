@@ -99,6 +99,7 @@ class Encoder1DBlock(nn.Module):
     x = x + inputs
 
     # MLP block.
+    y = x
     y = MlpBlock(
         mlp_dim=self.mlp_dim, dtype=self.dtype, dropout_rate=self.dropout_rate)(
             y, deterministic=deterministic)
