@@ -295,7 +295,7 @@ def train():
   print_verbose("param_count: {}".format(str(param_count)))
 
   total_steps = num_steps
-  lr_fn = lambda lr: 0.001
+  lr_fn = lambda lr: 1e-10
 
   update_fn_repl = make_update_fn(
       apply_fn=model.apply, accum_steps=accum_steps, lr_fn=lr_fn)
