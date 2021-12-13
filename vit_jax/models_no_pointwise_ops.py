@@ -32,7 +32,7 @@ class MlpBlock(nn.Module):
   out_dim: Optional[int] = None
   dropout_rate: float = 0.1
   kernel_init: Callable[[PRNGKey, Shape, Dtype],
-                        Array] = nn.initializers.xavier_uniform()
+                        Array] = nn.initializers.zeros()
 
   @nn.compact
   def __call__(self, inputs, *, deterministic):
@@ -89,7 +89,7 @@ class Encoder1DBlock(nn.Module):
     x = inputs
     x = nn.MultiHeadDotProductAttention(
         dtype=self.dtype,
-        kernel_init=nn.initializers.xavier_uniform(),
+        kernel_init=nn.initializers.zeros(),
         broadcast_dropout=False,
         deterministic=deterministic,
         dropout_rate=self.attention_dropout_rate,
@@ -205,7 +205,7 @@ class VisionTransformer(nn.Module):
       x = nn.Dense(
         features=self.num_classes,
         name='head',
-        kernel_init=nn.initializers.zeros,
+        kernel_init=nn.initializers.zeros(),
         dtype=self.dtype,
         use_bias=False)(x)
     return x

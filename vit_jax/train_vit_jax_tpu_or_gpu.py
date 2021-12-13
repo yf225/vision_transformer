@@ -284,7 +284,7 @@ def train():
   def init_model():
     return model.init(
         jax.random.PRNGKey(0),
-        jnp.ones(batch[0].shape[1:], model.dtype),
+        jnp.zeros(batch[0].shape[1:], model.dtype),
         train=False)
 
   # This compiles the model to XLA (takes some minutes the first time).
