@@ -69,6 +69,9 @@ parser.add_argument("--use_only_two_tpu_cores", type=bool, default=False)  # onl
 parser.add_argument("--mode", type=str)
 parser.add_argument("--bits", type=int)
 parser.add_argument("--micro-batch-size", type=int)
+# Whether to have pointwise ops (e.g. GeLU) in the model (by default we have pointwise ops).
+# Useful only for understanding whether XLA does activation checkpointing automatically for pointwise ops.
+parser.add_argument("--no_pointwise_ops", type=bool, default=False)
 args = parser.parse_args()
 
 assert args.device in ["tpu", "gpu"]
@@ -170,7 +173,7 @@ if './vision_transformer' not in sys.path:
 # %autoreload 2
 
 from vit_jax import input_pipeline
-from vit_jax import models
+from vit_jax import models, models_no_pointwise_ops
 from vit_jax import momentum_clip
 from vit_jax import utils
 
@@ -246,15 +249,26 @@ def train():
   print_verbose((batch[0].shape, batch[1].shape))
 
   # Build VisionTransformer architecture
-  model = models.VisionTransformer(
-    num_heads=num_attention_heads,
-    hidden_size=hidden_size,
-    num_layers=num_layers,
-    patch_size=patch_size,
-    num_classes=num_classes,
-    dropout_rate=dropout_rate,
-    dtype=model_dtype,
-  )
+  if args.no_pointwise_ops:
+    model = models_no_pointwise_ops.VisionTransformer(
+      num_heads=num_attention_heads,
+      hidden_size=hidden_size,
+      num_layers=num_layers,
+      patch_size=patch_size,
+      num_classes=num_classes,
+      dropout_rate=dropout_rate,
+      dtype=model_dtype,
+    )
+  else:
+    model = models.VisionTransformer(
+      num_heads=num_attention_heads,
+      hidden_size=hidden_size,
+      num_layers=num_layers,
+      patch_size=patch_size,
+      num_classes=num_classes,
+      dropout_rate=dropout_rate,
+      dtype=model_dtype,
+    )
 
   def init_model():
     return model.init(
