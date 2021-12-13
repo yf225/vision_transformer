@@ -89,7 +89,7 @@ class Encoder1DBlock(nn.Module):
     x = inputs
     x = nn.MultiHeadDotProductAttention(
         dtype=self.dtype,
-        kernel_init=nn.initializers.zeros(),
+        kernel_init=nn.initializers.zeros,
         broadcast_dropout=False,
         deterministic=deterministic,
         dropout_rate=self.attention_dropout_rate,
@@ -205,7 +205,7 @@ class VisionTransformer(nn.Module):
       x = nn.Dense(
         features=self.num_classes,
         name='head',
-        kernel_init=nn.initializers.zeros(),
+        kernel_init=nn.initializers.zeros,
         dtype=self.dtype,
         use_bias=False)(x)
     return x
