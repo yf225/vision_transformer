@@ -32,7 +32,7 @@ class MlpBlock(nn.Module):
   out_dim: Optional[int] = None
   dropout_rate: float = 0.1
   kernel_init: Callable[[PRNGKey, Shape, Dtype],
-                        Array] = nn.initializers.zeros()
+                        Array] = nn.initializers.zeros
 
   @nn.compact
   def __call__(self, inputs, *, deterministic):
