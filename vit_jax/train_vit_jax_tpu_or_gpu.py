@@ -224,11 +224,18 @@ def get_random_data(*, num_classes,
              image_size, global_batch_size, num_steps):
   num_devices = len(devices)
 
-  data = tf.data.Dataset.from_tensor_slices((
-    tf.convert_to_tensor(np.random.randn(1, global_batch_size, image_size, image_size, 3) , dtype=input_dtype),
-    # tf.one_hot(np.random.randint(0, num_classes, size=(1, global_batch_size, 1)), num_classes),
-    tf.one_hot(np.zeros((1, global_batch_size, 1)), num_classes),
-  ))
+  if args.no_pointwise_ops:
+    data = tf.data.Dataset.from_tensor_slices((
+      tf.convert_to_tensor(np.zeros((1, global_batch_size, image_size, image_size, 3)) , dtype=input_dtype),
+      # tf.one_hot(np.random.randint(0, num_classes, size=(1, global_batch_size, 1)), num_classes),
+      tf.one_hot(np.zeros((1, global_batch_size, 1)), num_classes),
+    ))
+  else:
+    data = tf.data.Dataset.from_tensor_slices((
+      tf.convert_to_tensor(np.random.randn(1, global_batch_size, image_size, image_size, 3) , dtype=input_dtype),
+      # tf.one_hot(np.random.randint(0, num_classes, size=(1, global_batch_size, 1)), num_classes),
+      tf.one_hot(np.zeros((1, global_batch_size, 1)), num_classes),
+    ))
 
   # Shard data such that it can be distributed accross devices
   def _shard(data_image, data_label):
@@ -295,7 +302,10 @@ def train():
   print_verbose("param_count: {}".format(str(param_count)))
 
   total_steps = num_steps
-  lr_fn = lambda lr: 1e-50
+  if args.no_pointwise_ops:
+    lr_fn = lambda lr: 0.
+  else:
+    lr_fn = lambda lr: 1e-6
 
   update_fn_repl = make_update_fn(
       apply_fn=model.apply, accum_steps=accum_steps, lr_fn=lr_fn)
