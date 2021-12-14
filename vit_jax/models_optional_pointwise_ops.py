@@ -28,6 +28,15 @@ use_bias = True
 use_norm = True
 use_gelu = True
 use_dropout = True
+use_identity_layer = True
+
+
+class IdentityLayer(nn.Module):
+  """Identity layer, convenient for giving a name to an array."""
+
+  @nn.compact
+  def __call__(self, x):
+    return x
 
 
 class MlpBlock(nn.Module):
@@ -229,6 +238,9 @@ class VisionTransformer(nn.Module):
       x = jnp.mean(x, axis=list(range(1, x.ndim - 1)))  # (1,) or (1,2)
     else:
       raise ValueError(f'Invalid classifier={self.classifier}')
+
+    if use_identity_layer:
+      x = IdentityLayer(name='pre_logits')(x)
 
     if self.num_classes:
       x = nn.Dense(
