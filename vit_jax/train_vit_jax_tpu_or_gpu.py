@@ -23,6 +23,8 @@ python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=graph --bits=16 
 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --use_only_two_tpu_cores=True --mode=eager --bits=16 --micro-batch-size=32
 
 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --optional_pointwise_ops=True --mode=graph --bits=16 --micro-batch-size=96
+
+python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=graph --bits=16 --micro-batch-size=96
 """
 
 # Or, on AWS GPU node, run
