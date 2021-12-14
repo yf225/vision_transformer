@@ -18,23 +18,28 @@ cd vision_transformer/
 export PYTHONPATH=/home/liamng856/vision_transformer:${PYTHONPATH}
 python3 vit_jax/train_vit_jax_tpu_or_gpu_use_all_devices.py --device=tpu --bits=16 --mode=eager --micro-batch-size=96
 
-python3 vit_jax/train_vit_jax_tpu_or_gpu_use_all_devices.py --device=tpu --bits=16 --mode=eager --optional_pointwise_ops=True --micro-batch-size=96
+python3 vit_jax/train_vit_jax_tpu_or_gpu_use_all_devices.py --device=tpu --bits=16 --mode=eager --optional_pointwise_ops=True --micro-batch-size=48
 """
 
 # Or, on AWS GPU node, run
 """
+conda activate jax
+
 pip install --upgrade pip
-pip install --upgrade "jax[cuda]" -f https://storage.googleapis.com/jax-releases/jax_releases.html  # Note: wheels only available on linux.
+pip uninstall -y jaxlib jax
+pip install --upgrade "jax[cuda11_cudnn805]==0.2.25" -f https://storage.googleapis.com/jax-releases/jax_releases.html  # Note: wheels only available on linux.
 pip install tensorflow==2.7.0 flax einops tensorflow_datasets
 
 # Clone repository and pull latest changes.
 cd /fsx/users/willfeng/repos
 rm -rf vision_transformer || true
-git clone --depth=1 https://github.com/yf225/vision_transformer -b vit_dummy_data
+git clone https://github.com/yf225/vision_transformer -b vit_dummy_data
 cd vision_transformer/
 
 export PYTHONPATH=/fsx/users/willfeng/repos/vision_transformer:${PYTHONPATH}
-CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu_use_all_devices.py --device=gpu --mode=eager --bits=16 --micro-batch-size=64
+CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu_use_all_devices.py --device=gpu --mode=eager --bits=16 --micro-batch-size=96
+
+CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu_use_all_devices.py --device=gpu --mode=eager --bits=16 --optional_pointwise_ops=True --micro-batch-size=96
 """
 
 # References:
