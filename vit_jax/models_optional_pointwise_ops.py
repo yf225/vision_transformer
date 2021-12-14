@@ -24,10 +24,10 @@ Shape = Tuple[int]
 Dtype = Any
 
 
-use_bias = False
-use_norm = False
-use_gelu = False
-use_dropout = False
+use_bias = True
+use_norm = True
+use_gelu = True
+use_dropout = True
 
 
 class MlpBlock(nn.Module):
