@@ -31,8 +31,7 @@ git clone --depth=1 https://github.com/yf225/vision_transformer -b vit_dummy_dat
 cd vision_transformer/
 
 export PYTHONPATH=/fsx/users/willfeng/repos/vision_transformer:${PYTHONPATH}
-export XLA_PYTHON_CLIENT_ALLOCATOR=platform
-python3 vit_jax/train_vit_jax_tpu_or_gpu_use_all_devices.py --device=gpu --mode=eager --bits=16 --micro-batch-size=1
+CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu_use_all_devices.py --device=gpu --mode=eager --bits=16 --micro-batch-size=64
 """
 
 # References:
