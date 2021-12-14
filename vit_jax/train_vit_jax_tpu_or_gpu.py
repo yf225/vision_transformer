@@ -4,7 +4,7 @@ pip install --upgrade pip
 export PATH=/home/yfeng_us/.local/bin:${PATH}
 
 # NOTE: jax 0.2.26 seems to have bug that causes TPU memory fragmentation
-pip install "jax[tpu]==0.2.24" -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
+pip install "jax[tpu]==0.2.25" -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
 sudo pip uninstall -y six typing-extensions tf-nightly
 pip install tensorflow==2.7.0 flax einops tensorflow_datasets
 
@@ -13,6 +13,10 @@ cd ~/
 rm -rf vision_transformer || true
 git clone https://github.com/yf225/vision_transformer -b vit_dummy_data
 cd vision_transformer/
+export PATH=/home/liamng856/.local/bin:${PATH}
+export PYTHONPATH=/home/liamng856/vision_transformer:${PYTHONPATH}
+
+python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=eager --bits=16 --micro-batch-size=96
 
 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=eager --bits=16 --micro-batch-size=16
 
@@ -326,9 +330,8 @@ def train():
   del opt
   del params
   # del variables
-
-  # Try to decrease memory fragmentation (https://github.com/google/flax/discussions/1690)
-  print(model.params)
+  import gc
+  gc.collect()
 
   # Prepare the learning-rate and pre-fetch it to device to avoid delays.
   update_rng_repl = flax.jax_utils.replicate(jax.random.PRNGKey(0), devices)
