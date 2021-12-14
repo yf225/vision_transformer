@@ -1,4 +1,4 @@
-# NOTE: it seems that you cannot pass `devices` list into flax APIs if you want to achieve max batch size,
+# NOTE: it seems that we cannot pass `devices` list into flax replicate / prefetch_to_device APIs if we want to achieve max batch size when using all devices,
 # which is really weird. :(
 
 # On Cloud TPU node, run
