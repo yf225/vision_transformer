@@ -4,7 +4,7 @@ pip install --upgrade pip
 export PATH=/home/yfeng_us/.local/bin:${PATH}
 
 # NOTE: jax 0.2.26 seems to have bug that causes TPU memory fragmentation
-pip install "jax[tpu]==0.2.25" -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
+pip install "jax[tpu]==0.2.24" -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
 sudo pip uninstall -y six typing-extensions tf-nightly
 pip install tensorflow==2.7.0 flax einops tensorflow_datasets
 
@@ -13,8 +13,6 @@ cd ~/
 rm -rf vision_transformer || true
 git clone https://github.com/yf225/vision_transformer -b vit_dummy_data
 cd vision_transformer/
-
-export PYTHONPATH=/home/yfeng_us/vision_transformer:${PYTHONPATH}
 
 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=eager --bits=16 --micro-batch-size=16
 
@@ -27,6 +25,8 @@ python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --use_only_two_tpu_core
 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --optional_pointwise_ops=True --mode=graph --bits=16 --micro-batch-size=96
 
 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=graph --bits=16 --micro-batch-size=96
+
+python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=eager --bits=16 --micro-batch-size=96
 """
 
 # Or, on AWS GPU node, run
@@ -217,11 +217,12 @@ def make_update_fn(*, apply_fn, accum_steps, lr_fn):
     opt = opt.apply_gradient(g, learning_rate=lr_fn(step))
     return opt, l, new_rng
 
-  if args.mode == "eager":
-    with jax.disable_jit():
-      return jax.pmap(update_fn, axis_name='batch', donate_argnums=(0,))
-  elif args.mode == "graph":
-    return jax.pmap(update_fn, axis_name='batch', donate_argnums=(0,))
+  # if args.mode == "eager":
+  #   with jax.disable_jit():
+  #     return jax.pmap(update_fn, axis_name='batch', donate_argnums=(0,))
+  # elif args.mode == "graph":
+  #   return jax.pmap(update_fn, axis_name='batch', donate_argnums=(0,))
+  return jax.pmap(update_fn, axis_name='batch', donate_argnums=(0,))
 
 
 def get_random_data(*, num_classes,
@@ -295,8 +296,8 @@ def train():
   # This compiles the model to XLA (takes some minutes the first time).
   start_time = time.time()
   if args.mode == "eager":
-    with jax.disable_jit():
-      variables = init_model()
+    # with jax.disable_jit():
+    variables = init_model()
     print_verbose("init_model time (with disable_jit): {:.2f}s".format(time.time() - start_time))
   elif args.mode == "graph":
     variables = jax.jit(init_model, backend='cpu')()
@@ -324,7 +325,10 @@ def train():
   # Delete references to the objects that are not needed anymore
   del opt
   del params
-  del variables
+  # del variables
+
+  # Try to decrease memory fragmentation (https://github.com/google/flax/discussions/1690)
+  print(model.params)
 
   # Prepare the learning-rate and pre-fetch it to device to avoid delays.
   update_rng_repl = flax.jax_utils.replicate(jax.random.PRNGKey(0), devices)
