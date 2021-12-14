@@ -24,6 +24,11 @@ Shape = Tuple[int]
 Dtype = Any
 
 
+use_bias = True
+use_norm = False
+use_gelu = False
+
+
 class MlpBlock(nn.Module):
   """Transformer MLP / feed-forward block."""
 
