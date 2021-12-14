@@ -8,8 +8,9 @@ sudo pip uninstall -y six typing-extensions tf-nightly
 pip install tensorflow==2.7.0 flax einops tensorflow_datasets
 
 # Clone repository and pull latest changes.
+cd ~/
 rm -rf vision_transformer || true
-git clone --depth=1 https://github.com/yf225/vision_transformer -b vit_dummy_data
+git clone https://github.com/yf225/vision_transformer -b vit_dummy_data
 cd vision_transformer/
 
 export PYTHONPATH=/home/yfeng_us/vision_transformer:${PYTHONPATH}
@@ -336,7 +337,7 @@ def train():
 
   for step, batch in zip(
       range(initial_step, total_steps + 1),
-      input_pipeline.prefetch(ds_train, n_prefetch=2, devices=devices)):
+      input_pipeline.prefetch(ds_train, devices=devices)):  # n_prefetch=2,
 
     opt_repl, loss_repl, update_rng_repl = update_fn_repl(
         opt_repl, flax.jax_utils.replicate(step, devices), batch, update_rng_repl)
