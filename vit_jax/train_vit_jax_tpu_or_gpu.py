@@ -12,7 +12,7 @@ rm -rf vision_transformer || true
 git clone https://github.com/yf225/vision_transformer -b vit_dummy_data_Nov29
 cd vision_transformer/
 
-export PYTHONPATH=/home/yfeng_us/vision_transformer:${PYTHONPATH}
+export PYTHONPATH=/home/liamng856/vision_transformer:${PYTHONPATH}
 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --bits=16 --mode=eager --micro-batch-size=96
 """
 
