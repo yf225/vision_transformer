@@ -1,3 +1,6 @@
+# NOTE: it seems that you cannot pass `devices` list into flax APIs if you want to achieve max batch size,
+# which is really weird. :(
+
 # On Cloud TPU node, run
 """
 pip install --upgrade pip
