@@ -3,17 +3,17 @@
 pip install --upgrade pip
 export PATH=/home/yfeng_us/.local/bin:${PATH}
 
-pip install "jax[tpu]>=0.2.16" -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
+pip install "jax[tpu]==0.2.25" -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
 sudo pip uninstall -y six typing-extensions tf-nightly
 pip install tensorflow==2.7.0 flax einops tensorflow_datasets
 
 # Clone repository and pull latest changes.
 rm -rf vision_transformer || true
-git clone --depth=1 https://github.com/yf225/vision_transformer -b vit_dummy_data
+git clone https://github.com/yf225/vision_transformer -b vit_dummy_data_Nov29
 cd vision_transformer/
 
 export PYTHONPATH=/home/yfeng_us/vision_transformer:${PYTHONPATH}
-python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --bits=16 --micro-batch-size=8
+python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --bits=16 --mode=eager --micro-batch-size=96
 """
 
 # Or, on AWS GPU node, run
