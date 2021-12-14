@@ -332,6 +332,8 @@ def train():
   # del variables
   import gc
   gc.collect()
+  gc.collect()
+  gc.collect()
 
   # Prepare the learning-rate and pre-fetch it to device to avoid delays.
   update_rng_repl = flax.jax_utils.replicate(jax.random.PRNGKey(0), devices)
