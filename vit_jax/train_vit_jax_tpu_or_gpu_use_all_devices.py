@@ -14,6 +14,8 @@ cd vision_transformer/
 
 export PYTHONPATH=/home/liamng856/vision_transformer:${PYTHONPATH}
 python3 vit_jax/train_vit_jax_tpu_or_gpu_use_all_devices.py --device=tpu --bits=16 --mode=eager --micro-batch-size=96
+
+python3 vit_jax/train_vit_jax_tpu_or_gpu_use_all_devices.py --device=tpu --bits=16 --mode=eager --optional_pointwise_ops=True --micro-batch-size=96
 """
 
 # Or, on AWS GPU node, run
@@ -43,6 +45,7 @@ parser.add_argument("--device", type=str)
 parser.add_argument("--mode", type=str)
 parser.add_argument("--bits", type=int)
 parser.add_argument("--micro-batch-size", type=int)
+parser.add_argument("--optional_pointwise_ops", type=bool, default=False)
 args = parser.parse_args()
 
 assert args.device in ["tpu", "gpu"]
@@ -181,11 +184,18 @@ def get_random_data(*, num_classes,
              image_size, global_batch_size, num_steps):
   num_devices = jax.local_device_count()
 
-  data = tf.data.Dataset.from_tensor_slices((
-    tf.convert_to_tensor(np.random.randn(1, global_batch_size, image_size, image_size, 3) , dtype=input_dtype),
-    # tf.one_hot(np.random.randint(0, num_classes, size=(1, global_batch_size, 1)), num_classes),
-    tf.one_hot(np.zeros((1, global_batch_size, 1)), num_classes),
-  ))
+  if args.optional_pointwise_ops:
+    data = tf.data.Dataset.from_tensor_slices((
+      tf.convert_to_tensor(np.zeros((1, global_batch_size, image_size, image_size, 3)) , dtype=input_dtype),
+      # tf.one_hot(np.random.randint(0, num_classes, size=(1, global_batch_size, 1)), num_classes),
+      tf.one_hot(np.zeros((1, global_batch_size, 1)), num_classes),
+    ))
+  else:
+    data = tf.data.Dataset.from_tensor_slices((
+      tf.convert_to_tensor(np.random.randn(1, global_batch_size, image_size, image_size, 3) , dtype=input_dtype),
+      # tf.one_hot(np.random.randint(0, num_classes, size=(1, global_batch_size, 1)), num_classes),
+      tf.one_hot(np.zeros((1, global_batch_size, 1)), num_classes),
+    ))
 
   # Shard data such that it can be distributed accross devices
   def _shard(data_image, data_label):
@@ -211,15 +221,26 @@ def train():
   print_verbose((batch[0].shape, batch[1].shape))
 
   # Build VisionTransformer architecture
-  model = models.VisionTransformer(
-    num_heads=num_attention_heads,
-    hidden_size=hidden_size,
-    num_layers=num_layers,
-    patch_size=patch_size,
-    num_classes=num_classes,
-    dropout_rate=dropout_rate,
-    dtype=model_dtype,
-  )
+  if args.optional_pointwise_ops:
+    model = models_optional_pointwise_ops.VisionTransformer(
+      num_heads=num_attention_heads,
+      hidden_size=hidden_size,
+      num_layers=num_layers,
+      patch_size=patch_size,
+      num_classes=num_classes,
+      dropout_rate=dropout_rate,
+      dtype=model_dtype,
+    )
+  else:
+    model = models.VisionTransformer(
+      num_heads=num_attention_heads,
+      hidden_size=hidden_size,
+      num_layers=num_layers,
+      patch_size=patch_size,
+      num_classes=num_classes,
+      dropout_rate=dropout_rate,
+      dtype=model_dtype,
+    )
 
   def init_model():
     return model.init(
@@ -243,7 +264,10 @@ def train():
   print_verbose("param_count: {}".format(str(param_count)))
 
   total_steps = num_steps
-  lr_fn = lambda lr: 0.001
+  if args.optional_pointwise_ops:
+    lr_fn = lambda lr: 0.
+  else:
+    lr_fn = lambda lr: 1e-6
 
   update_fn_repl = make_update_fn(
       apply_fn=model.apply, accum_steps=accum_steps, lr_fn=lr_fn)

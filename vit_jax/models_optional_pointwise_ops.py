@@ -24,11 +24,11 @@ Shape = Tuple[int]
 Dtype = Any
 
 
-use_bias = True
-use_norm = True
-use_gelu = True
-use_dropout = True
-use_identity_layer = True
+use_bias = False
+use_norm = False
+use_gelu = False
+use_dropout = False
+use_identity_layer = False
 
 
 class IdentityLayer(nn.Module):
