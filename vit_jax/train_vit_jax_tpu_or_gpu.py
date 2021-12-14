@@ -250,7 +250,7 @@ def get_random_data(*, num_classes,
 
   data = data.map(_shard, tf.data.experimental.AUTOTUNE)
 
-  return data.repeat(num_steps + 1).prefetch(2)
+  return data
 
 
 def train():
