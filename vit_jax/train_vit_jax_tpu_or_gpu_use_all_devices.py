@@ -140,7 +140,7 @@ if './vision_transformer' not in sys.path:
 # %autoreload 2
 
 from vit_jax import input_pipeline
-from vit_jax import models
+from vit_jax import models, models_optional_pointwise_ops
 from vit_jax import momentum_clip
 from vit_jax import utils
 
