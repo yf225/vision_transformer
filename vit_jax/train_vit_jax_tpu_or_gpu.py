@@ -22,7 +22,7 @@ python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --mode=graph --bits=16 
 
 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --use_only_two_tpu_cores=True --mode=eager --bits=16 --micro-batch-size=32
 
-python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --no_pointwise_ops=True --mode=eager --bits=16 --micro-batch-size=192
+python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=tpu --optional_pointwise_ops=True --mode=eager --bits=16 --micro-batch-size=192
 """
 
 # Or, on AWS GPU node, run
@@ -49,7 +49,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --devic
 
 CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=graph --bits=16 --micro-batch-size=64
 
-CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --no_pointwise_ops=True --mode=graph --bits=16 --micro-batch-size=64
+CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --optional_pointwise_ops=True --mode=graph --bits=16 --micro-batch-size=64
 
 CUDA_VISIBLE_DEVICES=0 python3 vit_jax/train_vit_jax_tpu_or_gpu.py --device=gpu --mode=eager --bits=16 --micro-batch-size=32
 """
@@ -75,7 +75,7 @@ parser.add_argument("--bits", type=int)
 parser.add_argument("--micro-batch-size", type=int)
 # Whether to have pointwise ops (e.g. GeLU) in the model (by default we have pointwise ops).
 # Useful only for understanding whether XLA does activation checkpointing automatically for pointwise ops.
-parser.add_argument("--no_pointwise_ops", type=bool, default=False)
+parser.add_argument("--optional_pointwise_ops", type=bool, default=False)
 args = parser.parse_args()
 
 assert args.device in ["tpu", "gpu"]
@@ -177,7 +177,7 @@ if './vision_transformer' not in sys.path:
 # %autoreload 2
 
 from vit_jax import input_pipeline
-from vit_jax import models, models_no_pointwise_ops
+from vit_jax import models, models_optional_pointwise_ops
 from vit_jax import momentum_clip
 from vit_jax import utils
 
@@ -224,7 +224,7 @@ def get_random_data(*, num_classes,
              image_size, global_batch_size, num_steps):
   num_devices = len(devices)
 
-  if args.no_pointwise_ops:
+  if args.optional_pointwise_ops:
     data = tf.data.Dataset.from_tensor_slices((
       tf.convert_to_tensor(np.zeros((1, global_batch_size, image_size, image_size, 3)) , dtype=input_dtype),
       # tf.one_hot(np.random.randint(0, num_classes, size=(1, global_batch_size, 1)), num_classes),
@@ -260,8 +260,8 @@ def train():
   print_verbose((batch[0].shape, batch[1].shape))
 
   # Build VisionTransformer architecture
-  if args.no_pointwise_ops:
-    model = models_no_pointwise_ops.VisionTransformer(
+  if args.optional_pointwise_ops:
+    model = models_optional_pointwise_ops.VisionTransformer(
       num_heads=num_attention_heads,
       hidden_size=hidden_size,
       num_layers=num_layers,
@@ -302,7 +302,7 @@ def train():
   print_verbose("param_count: {}".format(str(param_count)))
 
   total_steps = num_steps
-  if args.no_pointwise_ops:
+  if args.optional_pointwise_ops:
     lr_fn = lambda lr: 0.
   else:
     lr_fn = lambda lr: 1e-6
