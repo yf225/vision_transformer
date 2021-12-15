@@ -246,7 +246,7 @@ def train():
     return model.init(
         jax.random.PRNGKey(0),
         # Discard the "num_local_devices" dimension for initialization.
-        jnp.ones(batch[0].shape[1:], model.dtype),
+        jnp.zeros(batch[0].shape[1:], model.dtype),
         train=False)
 
   if args.mode == "eager":
