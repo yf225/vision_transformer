@@ -39,10 +39,6 @@ class MlpBlock(nn.Module):
   dtype: Dtype = jnp.bfloat16
   out_dim: Optional[int] = None
   dropout_rate: float = 0.1
-  kernel_init: Callable[[PRNGKey, Shape, Dtype],
-                        Array] = nn.initializers.xavier_uniform()
-  bias_init: Callable[[PRNGKey, Shape, Dtype],
-                      Array] = nn.initializers.normal(stddev=1e-6)
 
   @nn.compact
   def __call__(self, inputs, *, deterministic):
@@ -51,16 +47,16 @@ class MlpBlock(nn.Module):
     x = nn.Dense(
         features=self.mlp_dim,
         dtype=self.dtype,
-        kernel_init=self.kernel_init,
-        bias_init=self.bias_init)(  # pytype: disable=wrong-arg-types
+        kernel_init=nn.initializers.zeros,
+        bias_init=nn.initializers.zeros)(  # pytype: disable=wrong-arg-types
             inputs)
     x = nn.gelu(x)
     x = nn.Dropout(rate=self.dropout_rate)(x, deterministic=deterministic)
     output = nn.Dense(
         features=actual_out_dim,
         dtype=self.dtype,
-        kernel_init=self.kernel_init,
-        bias_init=self.bias_init)(  # pytype: disable=wrong-arg-types
+        kernel_init=nn.initializers.zeros,
+        bias_init=nn.initializers.zeros)(  # pytype: disable=wrong-arg-types
             x)
     output = nn.Dropout(
         rate=self.dropout_rate)(
@@ -104,7 +100,8 @@ class Encoder1DBlock(nn.Module):
     x = nn.LayerNorm(dtype=self.dtype)(inputs)
     x = nn.MultiHeadDotProductAttention(
         dtype=self.dtype,
-        kernel_init=nn.initializers.xavier_uniform(),
+        kernel_init=nn.initializers.zeros,
+        bias_init=nn.initializers.zeros,
         broadcast_dropout=False,
         deterministic=deterministic,
         dropout_rate=self.attention_dropout_rate,
@@ -157,7 +154,9 @@ class Encoder(nn.Module):
     x = nn.Dense(
         features=self.hidden_size,
         name='projection',
-        dtype=self.dtype)(inputs)
+        dtype=self.dtype,
+        kernel_init=nn.initializers.zeros,
+        bias_init=nn.initializers.zeros)(inputs)
     x = x + nn.Embed(num_embeddings=num_patches, features=self.hidden_size, dtype=self.dtype)(
       np.arange(start=0, stop=num_patches, step=1)
     )
@@ -216,7 +215,7 @@ class VisionTransformer(nn.Module):
       raise ValueError(f'Invalid classifier={self.classifier}')
 
     if self.representation_size is not None:
-      x = nn.Dense(features=self.representation_size, name='pre_logits', dtype=self.dtype)(x)
+      x = nn.Dense(features=self.representation_size, name='pre_logits', dtype=self.dtype, kernel_init=nn.initializers.zeros, bias_init=nn.initializers.zeros)(x)
       x = nn.tanh(x)
     else:
       x = IdentityLayer(name='pre_logits')(x)
@@ -226,5 +225,6 @@ class VisionTransformer(nn.Module):
         features=self.num_classes,
         name='head',
         kernel_init=nn.initializers.zeros,
+        bias_init=nn.initializers.zeros,
         dtype=self.dtype)(x)
     return x
