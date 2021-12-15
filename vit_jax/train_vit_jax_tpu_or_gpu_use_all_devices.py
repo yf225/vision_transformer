@@ -37,6 +37,9 @@ git clone https://github.com/yf225/vision_transformer -b vit_dummy_data
 cd vision_transformer/
 
 export PYTHONPATH=/fsx/users/willfeng/repos/vision_transformer:${PYTHONPATH}
+export PATH=/usr/local/cuda-11.1/bin:${PATH}
+export LD_LIBRARY_PATH=/usr/local/cuda-11.1/lib64:/usr/local/cuda-11.1/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
+
 CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu_use_all_devices.py --device=gpu --mode=eager --bits=16 --micro-batch-size=60
 
 CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu_use_all_devices.py --device=gpu --mode=eager --bits=16 --optional_pointwise_ops=True --micro-batch-size=96
