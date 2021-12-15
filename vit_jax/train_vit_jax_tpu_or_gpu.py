@@ -40,7 +40,7 @@ conda activate jax
 
 pip install --upgrade pip
 pip uninstall -y jaxlib jax
-pip install jax[cuda11_cudnn805] -f https://storage.googleapis.com/jax-releases/jax_releases.html
+pip install jax[cuda11_cudnn805]==0.2.25 -f https://storage.googleapis.com/jax-releases/jax_releases.html
 pip install tensorflow==2.7.0 flax einops tensorflow_datasets tbp-nightly
 
 # Clone repository and pull latest changes.
