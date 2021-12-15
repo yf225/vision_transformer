@@ -3,8 +3,8 @@
 
 # On Cloud TPU node, run
 """
-pip install --upgrade pip
 export PATH=/home/liamng856/.local/bin:${PATH}
+pip install --upgrade pip
 
 pip install "jax[tpu]==0.2.25" -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
 sudo pip uninstall -y six typing-extensions tf-nightly
@@ -18,7 +18,7 @@ cd vision_transformer/
 export PYTHONPATH=/home/liamng856/vision_transformer:${PYTHONPATH}
 python3 vit_jax/train_vit_jax_tpu_or_gpu_use_all_devices.py --device=tpu --bits=16 --mode=eager --micro-batch-size=96
 
-python3 vit_jax/train_vit_jax_tpu_or_gpu_use_all_devices.py --device=tpu --bits=16 --mode=eager --optional_pointwise_ops=True --micro-batch-size=48
+python3 vit_jax/train_vit_jax_tpu_or_gpu_use_all_devices.py --device=tpu --bits=16 --mode=eager --optional_pointwise_ops=True --micro-batch-size=60
 """
 
 # Or, on AWS GPU node, run
@@ -37,7 +37,7 @@ git clone https://github.com/yf225/vision_transformer -b vit_dummy_data
 cd vision_transformer/
 
 export PYTHONPATH=/fsx/users/willfeng/repos/vision_transformer:${PYTHONPATH}
-CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu_use_all_devices.py --device=gpu --mode=eager --bits=16 --micro-batch-size=96
+CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu_use_all_devices.py --device=gpu --mode=eager --bits=16 --micro-batch-size=60
 
 CUDA_VISIBLE_DEVICES=0,1,2,3 python3 vit_jax/train_vit_jax_tpu_or_gpu_use_all_devices.py --device=gpu --mode=eager --bits=16 --optional_pointwise_ops=True --micro-batch-size=96
 """
