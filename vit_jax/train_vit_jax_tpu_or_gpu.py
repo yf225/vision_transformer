@@ -236,13 +236,11 @@ def get_random_data(*, num_classes,
   if args.optional_pointwise_ops:
     data = tf.data.Dataset.from_tensor_slices((
       tf.convert_to_tensor(np.zeros((1, global_batch_size, image_size, image_size, 3)) , dtype=input_dtype),
-      # tf.one_hot(np.random.randint(0, num_classes, size=(1, global_batch_size, 1)), num_classes),
       tf.one_hot(np.zeros((1, global_batch_size, 1)), num_classes),
     ))
   else:
     data = tf.data.Dataset.from_tensor_slices((
-      tf.convert_to_tensor(np.random.randn(1, global_batch_size, image_size, image_size, 3) , dtype=input_dtype),
-      # tf.one_hot(np.random.randint(0, num_classes, size=(1, global_batch_size, 1)), num_classes),
+      tf.convert_to_tensor(np.zeros(1, global_batch_size, image_size, image_size, 3) , dtype=input_dtype),
       tf.one_hot(np.zeros((1, global_batch_size, 1)), num_classes),
     ))
 
