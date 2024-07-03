@@ -38,7 +38,7 @@ class Optimizer(flax.optim.OptimizerDef):
                grad_norm_clip=None):
     hyper_params = Optimizer.HyperParams(learning_rate, beta, grad_norm_clip)
     super().__init__(hyper_params)
-    self.dtype = dict(bfloat16=jnp.bfloat16, float32=jnp.float32)[dtype]
+    self.dtype = dict(bfloat16=jnp.bfloat16, float16=jnp.float16, float32=jnp.float32)[dtype]
 
   def init_param_state(self, param):
     return Optimizer.State(jnp.zeros_like(param, dtype=self.dtype))

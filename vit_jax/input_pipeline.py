@@ -60,7 +60,7 @@ def get_directory_info(directory):
 
 def get_dataset_info(dataset, split):
   """Returns information about a dataset.
-  
+
   Args:
     dataset: Name of tfds dataset or directory -- see `./configs/common.py`
     split: Which split to return data for (e.g. "test", or "train"; tfds also
@@ -241,11 +241,11 @@ def get_data(*,
   return data.prefetch(1)
 
 
-def prefetch(dataset, n_prefetch):
+def prefetch(dataset, n_prefetch, devices=None):
   """Prefetches data to device and converts to numpy array."""
   ds_iter = iter(dataset)
-  ds_iter = map(lambda x: jax.tree_map(lambda t: np.asarray(memoryview(t)), x),
-                ds_iter)
+  ds_iter = map(lambda x: jax.tree_map(lambda t: t._numpy(), x),
+              ds_iter)
   if n_prefetch:
-    ds_iter = flax.jax_utils.prefetch_to_device(ds_iter, n_prefetch)
+    ds_iter = flax.jax_utils.prefetch_to_device(ds_iter, n_prefetch, devices=devices)
   return ds_iter

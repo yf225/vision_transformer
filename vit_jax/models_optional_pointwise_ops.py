@@ -24,6 +24,13 @@ Shape = Tuple[int]
 Dtype = Any
 
 
+use_bias = False
+use_norm = False
+use_gelu = False
+use_dropout = False
+use_identity_layer = False
+
+
 class IdentityLayer(nn.Module):
   """Identity layer, convenient for giving a name to an array."""
 
@@ -39,6 +46,10 @@ class MlpBlock(nn.Module):
   dtype: Dtype = jnp.bfloat16
   out_dim: Optional[int] = None
   dropout_rate: float = 0.1
+  kernel_init: Callable[[PRNGKey, Shape, Dtype],
+                        Array] = nn.initializers.zeros
+  bias_init: Callable[[PRNGKey, Shape, Dtype],
+                      Array] = nn.initializers.zeros
 
   @nn.compact
   def __call__(self, inputs, *, deterministic):
@@ -47,20 +58,25 @@ class MlpBlock(nn.Module):
     x = nn.Dense(
         features=self.mlp_dim,
         dtype=self.dtype,
-        kernel_init=nn.initializers.zeros,
-        bias_init=nn.initializers.zeros)(  # pytype: disable=wrong-arg-types
+        kernel_init=self.kernel_init,
+        bias_init=self.bias_init,
+        use_bias=use_bias)(  # pytype: disable=wrong-arg-types
             inputs)
-    x = nn.gelu(x)
-    x = nn.Dropout(rate=self.dropout_rate)(x, deterministic=deterministic)
+    if use_gelu:
+      x = nn.gelu(x)
+    if use_dropout:
+      x = nn.Dropout(rate=self.dropout_rate)(x, deterministic=deterministic)
     output = nn.Dense(
         features=actual_out_dim,
         dtype=self.dtype,
-        kernel_init=nn.initializers.zeros,
-        bias_init=nn.initializers.zeros)(  # pytype: disable=wrong-arg-types
+        kernel_init=self.kernel_init,
+        bias_init=self.bias_init,
+        use_bias=use_bias)(  # pytype: disable=wrong-arg-types
             x)
-    output = nn.Dropout(
-        rate=self.dropout_rate)(
-            output, deterministic=deterministic)
+    if use_dropout:
+      output = nn.Dropout(
+          rate=self.dropout_rate)(
+              output, deterministic=deterministic)
     return output
 
 
@@ -97,21 +113,28 @@ class Encoder1DBlock(nn.Module):
 
     # Attention block.
     assert inputs.ndim == 3, f'Expected (batch, seq, hidden) got {inputs.shape}'
-    x = nn.LayerNorm(dtype=self.dtype)(inputs)
+    if use_norm:
+      x = nn.LayerNorm(dtype=self.dtype)(inputs)
+    else:
+      x = inputs
     x = nn.MultiHeadDotProductAttention(
         dtype=self.dtype,
         kernel_init=nn.initializers.zeros,
-        bias_init=nn.initializers.zeros,
         broadcast_dropout=False,
         deterministic=deterministic,
         dropout_rate=self.attention_dropout_rate,
-        num_heads=self.num_heads)(
+        num_heads=self.num_heads,
+        use_bias=use_bias)(
             x, x)
-    x = nn.Dropout(rate=self.dropout_rate)(x, deterministic=deterministic)
+    if use_dropout:
+      x = nn.Dropout(rate=self.dropout_rate)(x, deterministic=deterministic)
     x = x + inputs
 
     # MLP block.
-    y = nn.LayerNorm(dtype=self.dtype)(x)
+    if use_norm:
+      y = nn.LayerNorm(dtype=self.dtype)(x)
+    else:
+      y = x
     y = MlpBlock(
         mlp_dim=self.mlp_dim, dtype=self.dtype, dropout_rate=self.dropout_rate)(
             y, deterministic=deterministic)
@@ -155,8 +178,7 @@ class Encoder(nn.Module):
         features=self.hidden_size,
         name='projection',
         dtype=self.dtype,
-        kernel_init=nn.initializers.zeros,
-        bias_init=nn.initializers.zeros)(inputs)
+        use_bias=use_bias)(inputs)
     x = x + nn.Embed(num_embeddings=num_patches, features=self.hidden_size, dtype=self.dtype)(
       np.arange(start=0, stop=num_patches, step=1)
     )
@@ -171,7 +193,10 @@ class Encoder(nn.Module):
           num_heads=self.num_heads,
           dtype=self.dtype)(
               x, deterministic=not train)
-    encoded = nn.LayerNorm(name='encoder_norm', dtype=self.dtype)(x)
+    if use_norm:
+      encoded = nn.LayerNorm(name='encoder_norm', dtype=self.dtype)(x)
+    else:
+      encoded = x
 
     return encoded
 
@@ -214,10 +239,7 @@ class VisionTransformer(nn.Module):
     else:
       raise ValueError(f'Invalid classifier={self.classifier}')
 
-    if self.representation_size is not None:
-      x = nn.Dense(features=self.representation_size, name='pre_logits', dtype=self.dtype, kernel_init=nn.initializers.zeros, bias_init=nn.initializers.zeros)(x)
-      x = nn.tanh(x)
-    else:
+    if use_identity_layer:
       x = IdentityLayer(name='pre_logits')(x)
 
     if self.num_classes:
@@ -225,6 +247,6 @@ class VisionTransformer(nn.Module):
         features=self.num_classes,
         name='head',
         kernel_init=nn.initializers.zeros,
-        bias_init=nn.initializers.zeros,
-        dtype=self.dtype)(x)
+        dtype=self.dtype,
+        use_bias=use_bias)(x)
     return x
